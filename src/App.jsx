@@ -366,13 +366,13 @@ function App() {
   console.log('App component is rendering...')
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}>
       {/* Header */}
-      <header className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-sm border-b transition-colors duration-200`}>
+      <header className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'} shadow-sm border-b transition-colors duration-200`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <h1 className={`text-2xl font-bold flex items-center transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              🚕 Taxi Fare Calculator
+              
             </h1>
             
             <div className="flex items-center space-x-3">
@@ -381,7 +381,7 @@ function App() {
                 onClick={toggleTheme}
                 className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
                   isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400' 
+                    ? 'bg-gray-800 hover:bg-gray-700 text-yellow-400' 
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                 }`}
                 title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -402,7 +402,7 @@ function App() {
                 to="/settings"
                 className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
                   isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-blue-400' 
+                    ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-blue-400' 
                     : 'bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-600'
                 }`}
                 title="Fare Settings"
@@ -423,7 +423,7 @@ function App() {
           <div className="space-y-6">
             
             {/* Address Inputs */}
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-6 border transition-colors duration-200`}>
+            <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-6 border transition-colors duration-200`}>
               <h2 className={`text-xl font-semibold mb-4 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Route Details</h2>
               <div className="space-y-4">
                 <div>
@@ -439,7 +439,7 @@ function App() {
                       onChange={(e) => setPickupAddress(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 transition-colors duration-200 ${
                         isDarkMode 
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                           : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                       }`}
                     />
@@ -463,7 +463,7 @@ function App() {
                       onChange={(e) => setDropoffAddress(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 transition-colors duration-200 ${
                         isDarkMode 
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                           : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                       }`}
                     />
@@ -488,7 +488,7 @@ function App() {
                     onChange={(e) => setCustomerName(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                         : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                     }`}
                   />
@@ -505,7 +505,7 @@ function App() {
                     onChange={(e) => setPickupDate(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        ? 'bg-gray-900 border-gray-700 text-white' 
                         : 'border-gray-300 bg-white text-gray-900'
                     }`}
                   />
@@ -522,7 +522,7 @@ function App() {
                     onChange={(e) => setPickupTime(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        ? 'bg-gray-900 border-gray-700 text-white' 
                         : 'border-gray-300 bg-white text-gray-900'
                     }`}
                   />
@@ -540,13 +540,13 @@ function App() {
                     onChange={(e) => setEmailAddress(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                         : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                     }`}
                   />
                 </div>
 
-                <div>
+      <div>
                   <label htmlFor="phone-number" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Phone Number
                   </label>
@@ -558,12 +558,12 @@ function App() {
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                         : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                     }`}
                   />
                 </div>
-              </div>
+      </div>
 
               {/* Calculate Button */}
               <div className="mt-6">
@@ -581,10 +581,10 @@ function App() {
           {/* Right Column - Map and Results */}
           <div className="space-y-6">
             {/* Map */}
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-0 overflow-hidden border transition-colors duration-200`}>
+            <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-0 overflow-hidden border transition-colors duration-200`}>
               <div className="h-96 w-full" ref={mapRef}>
                 {!isMapLoaded && (
-                  <div className={`h-full flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <div className={`h-full flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                       <p className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading map...</p>
@@ -596,7 +596,7 @@ function App() {
 
             {/* Results Card */}
             {(distance || fare) && (
-              <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-6 border transition-colors duration-200`}>
+              <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-6 border transition-colors duration-200`}>
                 <h2 className={`text-xl font-semibold mb-4 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Fare Estimate</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
