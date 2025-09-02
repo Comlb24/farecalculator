@@ -5,16 +5,19 @@ import './index.css'
 import App from './App.jsx'
 import Settings from './Settings.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
+import { ThemeProvider } from './ThemeContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<App />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
