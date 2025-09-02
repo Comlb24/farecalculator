@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 
 function App() {
   console.log('App component is mounting...')
@@ -6,6 +7,7 @@ function App() {
   const [pickupAddress, setPickupAddress] = useState('')
   const [dropoffAddress, setDropoffAddress] = useState('')
   const [distance, setDistance] = useState(null)
+  const [travelTime, setTravelTime] = useState(null)
   const [fare, setFare] = useState(null)
   const [apiKey] = useState('AIzaSyB8eSEwobyB-7ZkgKBUKLl5Hvico0CFjso')
   const [isMapLoaded, setIsMapLoaded] = useState(false)
@@ -13,9 +15,9 @@ function App() {
   
   // Settings state
   const [settings, setSettings] = useState({
-    perKmRate: 2.25,
+    perKmRate: 1.65,
     baseFare: 3.00,
-    minFare: 10.00,
+    minFare: 25.00,
     currency: 'CAD'
   })
   
@@ -162,6 +164,27 @@ function App() {
                 const displayName = place.name || place.formatted_address
                 setDropoffAddress(displayName)
                 console.log('Dropoff place selected:', displayName)
+                
+                // Auto-calculate if both addresses are filled
+                // Use a longer delay and check the actual input values
+                setTimeout(() => {
+                  const pickupInput = document.getElementById('pickup-address')
+                  const pickupValue = pickupInput ? pickupInput.value : ''
+                  console.log('Checking pickup value for auto-calculation:', pickupValue)
+                  
+                  if (pickupValue.trim()) {
+                    console.log('Auto-calculating route...')
+                    // Use the current place data for calculation instead of waiting for state
+                    const currentPickup = pickupValue.trim()
+                    const currentDropoff = displayName
+                    console.log('Using addresses for auto-calculation:', { currentPickup, currentDropoff })
+                    
+                    // Call calculateRoute with the current addresses
+                    calculateRouteWithAddresses(currentPickup, currentDropoff)
+                  } else {
+                    console.log('No pickup address found, skipping auto-calculation')
+                  }
+                }, 300) // Increased delay to ensure state is updated
               }
             })
             
@@ -255,6 +278,27 @@ function App() {
               const displayName = place.name || place.formatted_address
               setDropoffAddress(displayName)
               console.log('Separate dropoff place selected:', displayName)
+              
+              // Auto-calculate if both addresses are filled
+              // Use a longer delay and check the actual input values
+              setTimeout(() => {
+                const pickupInput = document.getElementById('pickup-address')
+                const pickupValue = pickupInput ? pickupInput.value : ''
+                console.log('Checking pickup value for auto-calculation:', pickupValue)
+                
+                if (pickupValue.trim()) {
+                  console.log('Auto-calculating route...')
+                  // Use the current place data for calculation instead of waiting for state
+                  const currentPickup = pickupValue.trim()
+                  const currentDropoff = displayName
+                  console.log('Using addresses for auto-calculation:', { currentPickup, currentDropoff })
+                  
+                  // Call calculateRoute with the current addresses
+                  calculateRouteWithAddresses(currentPickup, currentDropoff)
+                } else {
+                  console.log('No pickup address found, skipping auto-calculation')
+                }
+              }, 300) // Increased delay to ensure state is updated
             }
           })
           
@@ -266,6 +310,97 @@ function App() {
       }
     }
   }, [isMapLoaded])
+
+  const calculateRouteWithAddresses = async (pickup, dropoff) => {
+    if (!pickup || !dropoff) {
+      console.log('Missing addresses for calculation:', { pickup, dropoff })
+      return
+    }
+
+    if (!window.google || !window.google.maps) {
+      alert('Google Maps is not ready yet. Please wait a moment and try again.')
+      return
+    }
+
+    setIsCalculating(true)
+
+    try {
+      console.log('Auto-calculating route with addresses:', { pickup, dropoff })
+      
+      // Use the Directions Service to get real distance
+      if (window.google.maps.DirectionsService) {
+        const directionsService = new window.google.maps.DirectionsService()
+        
+        const request = {
+          origin: pickup,
+          destination: dropoff,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          unitSystem: window.google.maps.UnitSystem.METRIC
+        }
+
+        directionsService.route(request, (result, status) => {
+          if (status === 'OK' && result.routes[0]) {
+            const route = result.routes[0]
+            const leg = route.legs[0]
+            
+            // Get distance in kilometers and travel time in minutes
+            const distanceKm = leg.distance.value / 1000 // Convert meters to kilometers
+            const travelTimeMinutes = Math.round(leg.duration.value / 60) // Convert seconds to minutes
+            setDistance(distanceKm)
+            setTravelTime(travelTimeMinutes)
+            
+            // Calculate fare
+            const calculatedFare = Math.max(
+              settings.minFare,
+              settings.baseFare + (settings.perKmRate * distanceKm)
+            )
+            setFare(calculatedFare)
+            
+            console.log(`Auto-route calculated successfully! Distance: ${distanceKm.toFixed(2)} km, Travel time: ${travelTimeMinutes} min, Fare: ${settings.currency} ${calculatedFare.toFixed(2)}`)
+            
+            // Display route on map
+            if (mapInstanceRef.current) {
+              // Clear any existing directions first
+              if (directionsRendererRef.current) {
+                directionsRendererRef.current.setMap(null)
+              }
+              
+              // Create new directions renderer
+              const directionsRenderer = new window.google.maps.DirectionsRenderer()
+              directionsRenderer.setMap(mapInstanceRef.current)
+              directionsRenderer.setDirections(result)
+              
+              // Store reference for later clearing
+              directionsRendererRef.current = directionsRenderer
+            }
+          } else {
+            console.error('Auto-directions request failed:', status)
+            alert('Could not calculate route. Please check your addresses and try again.')
+          }
+        })
+      } else {
+        // Fallback to basic calculation if Directions Service not available
+        console.warn('Directions Service not available, using fallback calculation')
+        const distanceKm = 5.0 // Placeholder distance
+        const travelTimeMinutes = 15 // Placeholder travel time
+        setDistance(distanceKm)
+        setTravelTime(travelTimeMinutes)
+        
+        const calculatedFare = Math.max(
+          settings.minFare,
+          settings.baseFare + (settings.perKmRate * distanceKm)
+        )
+        setFare(calculatedFare)
+        
+        alert(`Basic calculation: Distance: ${distanceKm.toFixed(2)} km, Travel time: ${travelTimeMinutes} min, Fare: ${settings.currency} ${calculatedFare.toFixed(2)}`)
+      }
+    } catch (error) {
+      console.error('Error in auto-calculating route:', error)
+      alert('Error calculating route. Please check your addresses and try again.')
+    } finally {
+      setIsCalculating(false)
+    }
+  }
 
   const calculateRoute = async () => {
     if (!pickupAddress || !dropoffAddress) {
@@ -299,9 +434,11 @@ function App() {
             const route = result.routes[0]
             const leg = route.legs[0]
             
-            // Get distance in kilometers
+            // Get distance in kilometers and travel time in minutes
             const distanceKm = leg.distance.value / 1000 // Convert meters to kilometers
+            const travelTimeMinutes = Math.round(leg.duration.value / 60) // Convert seconds to minutes
             setDistance(distanceKm)
+            setTravelTime(travelTimeMinutes)
             
             // Calculate fare
             const calculatedFare = Math.max(
@@ -310,7 +447,7 @@ function App() {
             )
             setFare(calculatedFare)
             
-            console.log(`Route calculated successfully! Distance: ${distanceKm.toFixed(2)} km, Fare: ${settings.currency} ${calculatedFare.toFixed(2)}`)
+            console.log(`Route calculated successfully! Distance: ${distanceKm.toFixed(2)} km, Travel time: ${travelTimeMinutes} min, Fare: ${settings.currency} ${calculatedFare.toFixed(2)}`)
             
             // Display route on map
             if (mapInstanceRef.current) {
@@ -336,7 +473,9 @@ function App() {
         // Fallback to basic calculation if Directions Service not available
         console.warn('Directions Service not available, using fallback calculation')
         const distanceKm = 5.0 // Placeholder distance
+        const travelTimeMinutes = 15 // Placeholder travel time
         setDistance(distanceKm)
+        setTravelTime(travelTimeMinutes)
         
         const calculatedFare = Math.max(
           settings.minFare,
@@ -344,7 +483,7 @@ function App() {
         )
         setFare(calculatedFare)
         
-        alert(`Basic calculation: Distance: ${distanceKm.toFixed(2)} km, Fare: ${settings.currency} ${calculatedFare.toFixed(2)}`)
+        alert(`Basic calculation: Distance: ${distanceKm.toFixed(2)} km, Travel time: ${travelTimeMinutes} min, Fare: ${settings.currency} ${calculatedFare.toFixed(2)}`)
       }
 
     } catch (error) {
@@ -369,6 +508,7 @@ function App() {
     
     // Clear the state
     setDistance(null)
+    setTravelTime(null)
     setFare(null)
     setPickupAddress('')
     setDropoffAddress('')
@@ -397,9 +537,23 @@ function App() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            🚕 Taxi Fare Calculator
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              🚕 Taxi Fare Calculator
+            </h1>
+            
+            {/* Settings Wheel */}
+            <Link
+              to="/settings"
+              className="p-2 bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-600 rounded-full transition-all duration-200 hover:scale-110"
+              title="Fare Settings"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -460,9 +614,9 @@ function App() {
                 <button
                   onClick={calculateRoute}
                   disabled={!pickupAddress || !dropoffAddress || isCalculating}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-black hover:bg-gray-800 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
-                  {isCalculating ? 'Calculating...' : 'Calculate Route & Fare'}
+                  {isCalculating ? 'Calculating...' : 'Calculate'}
                 </button>
                 {(distance || fare) && (
                   <button
@@ -475,66 +629,7 @@ function App() {
               </div>
             </div>
 
-            {/* Settings Panel */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Fare Settings</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Per Kilometer Rate ({settings.currency})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={settings.perKmRate}
-                    onChange={(e) => updateSetting('perKmRate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Base Fare ({settings.currency})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={settings.baseFare}
-                    onChange={(e) => updateSetting('baseFare', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Fare ({settings.currency})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={settings.minFare}
-                    onChange={(e) => updateSetting('minFare', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Currency
-                  </label>
-                  <select
-                    value={settings.currency}
-                    onChange={(e) => updateSetting('currency', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="CAD">CAD</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           {/* Right Column - Map and Results */}
@@ -568,10 +663,14 @@ function App() {
                     <p className="font-medium text-gray-900">{dropoffAddress}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
                     <p className="text-sm text-gray-600">Distance</p>
                     <p className="font-medium text-gray-900">{distance?.toFixed(2)} km</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Travel Time</p>
+                    <p className="font-medium text-gray-900">{travelTime} min</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Estimated Fare</p>
