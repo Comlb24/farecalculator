@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useTheme } from './ThemeContext.jsx'
+import emailjs from '@emailjs/browser'
 
 function App() {
   console.log('App component is mounting...')
@@ -14,6 +15,20 @@ function App() {
   const [apiKey] = useState('AIzaSyB8eSEwobyB-7ZkgKBUKLl5Hvico0CFjso')
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
+  
+  // Customer information state
+  const [customerName, setCustomerName] = useState('')
+  const [pickupDate, setPickupDate] = useState('')
+  const [pickupTime, setPickupTime] = useState('')
+  const [emailAddress, setEmailAddress] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  
+  // EmailJS configuration
+  const [emailConfig] = useState({
+    serviceId: 'service_nrynudw', // You'll need to replace this with your EmailJS service ID
+    templateId: 'template_lqiv82a', // You'll need to replace this with your EmailJS template ID
+    publicKey: 'a6vgoEqiDO14QO4OJ' // You'll need to replace this with your EmailJS public key
+  })
   
   // Settings state
   const [settings, setSettings] = useState({
@@ -265,6 +280,71 @@ function App() {
     await calculateRouteWithAddresses(pickupAddress, dropoffAddress)
   }
 
+  const sendBookingEmail = async () => {
+    if (!pickupAddress || !dropoffAddress) {
+      alert('Please enter both pickup and dropoff addresses')
+      return
+    }
+
+    if (!customerName || !emailAddress || !phoneNumber) {
+      alert('Please fill in all required customer information (Name, Email, Phone)')
+      return
+    }
+
+    setIsCalculating(true)
+
+    try {
+      // Prepare email template parameters
+      const templateParams = {
+        customer_name: customerName,
+        pickup_address: pickupAddress,
+        dropoff_address: dropoffAddress,
+        pickup_date: pickupDate,
+        pickup_time: pickupTime,
+        email_address: emailAddress,
+        phone_number: phoneNumber,
+        distance: distance ? `${distance.toFixed(2)} km` : 'Not calculated',
+        travel_time: travelTime ? `${travelTime} minutes` : 'Not calculated',
+        estimated_fare: fare ? `${settings.currency} ${fare.toFixed(2)}` : 'Not calculated',
+        booking_date: new Date().toLocaleString(),
+        to_email: 'info@monctontaxi.com' // Replace with the email address where you want to receive bookings
+      }
+
+      // Send email using EmailJS
+      const response = await emailjs.send(
+        emailConfig.serviceId,
+        emailConfig.templateId,
+        templateParams,
+        emailConfig.publicKey
+      )
+
+      console.log('Email sent successfully:', response)
+      alert('Booking submitted successfully! We will contact you shortly.')
+      
+      // Clear the form after successful booking
+      clearResults()
+      setCustomerName('')
+      setPickupDate('')
+      setPickupTime('')
+      setEmailAddress('')
+      setPhoneNumber('')
+
+    } catch (error) {
+      console.error('Error sending email:', error)
+      alert('Failed to submit booking. Please try again or contact us directly.')
+    } finally {
+      setIsCalculating(false)
+    }
+  }
+
+  const handleBookNow = async () => {
+    // First calculate the route and fare
+    await calculateRoute()
+    
+    // Then send the booking email
+    await sendBookingEmail()
+  }
+
   const clearResults = () => {
     console.log('Clearing results...')
     setDistance(null)
@@ -284,7 +364,7 @@ function App() {
   }
 
   console.log('App component is rendering...')
-  
+
   return (
     <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
@@ -404,6 +484,8 @@ function App() {
                     id="customer-name"
                     type="text"
                     placeholder=""
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -419,6 +501,8 @@ function App() {
                   <input
                     id="pickup-date"
                     type="date"
+                    value={pickupDate}
+                    onChange={(e) => setPickupDate(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-700 border-gray-600 text-white' 
@@ -434,6 +518,8 @@ function App() {
                   <input
                     id="pickup-time"
                     type="time"
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-700 border-gray-600 text-white' 
@@ -450,6 +536,8 @@ function App() {
                     id="email-address"
                     type="email"
                     placeholder=""
+                    value={emailAddress}
+                    onChange={(e) => setEmailAddress(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -466,6 +554,8 @@ function App() {
                     id="phone-number"
                     type="tel"
                     placeholder=""
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -478,12 +568,12 @@ function App() {
               {/* Calculate Button */}
               <div className="mt-6">
                 <button
-                  onClick={calculateRoute}
+                  onClick={handleBookNow}
                   disabled={!pickupAddress || !dropoffAddress || isCalculating}
                   className="w-full bg-black hover:bg-gray-800 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
-                  {isCalculating ? 'Calculating...' : 'Calculate'}
-                </button>
+                  {isCalculating ? 'Processing...' : 'Book Now'}
+        </button>
               </div>
             </div>
           </div>
@@ -531,8 +621,8 @@ function App() {
                     <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Estimated Fare</p>
                     <p className="text-2xl font-bold text-blue-600">
                       {settings.currency} {fare?.toFixed(2)}
-                    </p>
-                  </div>
+        </p>
+      </div>
                 </div>
                 <div className={`p-4 rounded-lg transition-colors duration-200 ${isDarkMode ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-yellow-50'}`}>
                   <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-yellow-200' : 'text-yellow-800'}`}>
