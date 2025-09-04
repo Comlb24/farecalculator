@@ -9,6 +9,8 @@ function App() {
   const { isDarkMode, toggleTheme } = useTheme()
   const [pickupAddress, setPickupAddress] = useState('')
   const [dropoffAddress, setDropoffAddress] = useState('')
+  const [secondDropoffAddress, setSecondDropoffAddress] = useState('')
+  const [showSecondDropoff, setShowSecondDropoff] = useState(false)
   const [distance, setDistance] = useState(null)
   const [travelTime, setTravelTime] = useState(null)
   const [fare, setFare] = useState(null)
@@ -42,6 +44,7 @@ function App() {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const directionsRendererRef = useRef(null)
+  const customMarkersRef = useRef([])
   const autocompleteRefs = useRef({})
 
   // Load saved settings from localStorage
@@ -136,6 +139,17 @@ function App() {
               const displayName = place.name || place.formatted_address
               setPickupAddress(displayName)
               console.log('Pickup place selected:', displayName)
+              
+              // Auto-calculate route if dropoff addresses are already filled
+              setTimeout(() => {
+                if (dropoffAddress) {
+                  if (secondDropoffAddress) {
+                    updateMapWithMultipleDropoffs()
+                  } else {
+                    calculateRouteWithAddresses(displayName, dropoffAddress)
+                  }
+                }
+              }, 300)
             }
           })
 
@@ -178,8 +192,12 @@ function App() {
                   const currentDropoff = displayName
                   console.log('Using addresses for auto-calculation:', { currentPickup, currentDropoff })
                   
-                  // Call calculateRoute with the current addresses
-                  calculateRouteWithAddresses(currentPickup, currentDropoff)
+                  // Check if there's a second dropoff and use appropriate calculation method
+                  if (secondDropoffAddress) {
+                    updateMapWithMultipleDropoffs()
+                  } else {
+                    calculateRouteWithAddresses(currentPickup, currentDropoff)
+                  }
                 } else {
                   console.log('No pickup address found, skipping auto-calculation')
                 }
@@ -194,8 +212,283 @@ function App() {
         console.warn('Could not initialize dropoff autocomplete:', error)
       }
 
+
     } catch (error) {
       console.error('Error initializing map:', error)
+    }
+  }
+
+  const initializeSecondDropoffAutocomplete = () => {
+    if (!window.google || !window.google.maps) return
+
+    try {
+      const secondDropoffInput = document.getElementById('second-dropoff-address')
+      if (secondDropoffInput && !autocompleteRefs.current.secondDropoff) {
+        const secondDropoffAutocomplete = new window.google.maps.places.Autocomplete(secondDropoffInput, {
+          types: ['establishment'],
+          fields: ['formatted_address', 'geometry', 'name', 'place_id']
+        })
+
+        secondDropoffAutocomplete.addListener('place_changed', () => {
+          console.log('Second dropoff place_changed event fired')
+          const place = secondDropoffAutocomplete.getPlace()
+          console.log('Second dropoff place object:', place)
+          
+          // Only proceed if we have a valid place with geometry (actual selection, not just typing)
+          if (place && place.formatted_address && place.geometry && place.geometry.location) {
+            const displayName = place.name || place.formatted_address
+            console.log('Valid second dropoff place selected:', displayName)
+            console.log('Setting secondDropoffAddress to:', displayName)
+            setSecondDropoffAddress(displayName)
+            console.log('Current state values:', { pickupAddress, dropoffAddress, secondDropoffAddress: displayName })
+            
+            // Update map to show both dropoff locations with a delay to ensure state is updated
+            setTimeout(() => {
+              console.log('Calling updateMapWithMultipleDropoffs from second dropoff listener')
+              console.log('State values at timeout:', { pickupAddress, dropoffAddress, secondDropoffAddress: displayName })
+              updateMapWithMultipleDropoffs(displayName)
+            }, 500)
+          } else {
+            console.warn('Second dropoff place selection failed - invalid place object or no geometry')
+            console.log('Place object details:', { 
+              hasFormattedAddress: !!(place && place.formatted_address),
+              hasGeometry: !!(place && place.geometry),
+              hasLocation: !!(place && place.geometry && place.geometry.location)
+            })
+          }
+        })
+
+        autocompleteRefs.current.secondDropoff = secondDropoffAutocomplete
+        console.log('Second dropoff autocomplete initialized')
+      }
+    } catch (error) {
+      console.warn('Could not initialize second dropoff autocomplete:', error)
+    }
+  }
+
+  const updateMapWithMultipleDropoffs = async (providedSecondDropoff = null) => {
+    if (!window.google || !window.google.maps || !mapInstanceRef.current) return
+    
+    // Use provided address or fall back to state
+    const currentSecondDropoff = providedSecondDropoff || secondDropoffAddress
+    
+    if (!pickupAddress || !dropoffAddress || !currentSecondDropoff) {
+      console.log('Missing addresses for multi-dropoff:', { pickupAddress, dropoffAddress, secondDropoffAddress: currentSecondDropoff })
+      return
+    }
+
+    console.log('Updating map with multiple dropoffs:', { pickupAddress, dropoffAddress, secondDropoffAddress: currentSecondDropoff })
+    console.log('Current state values in updateMapWithMultipleDropoffs:', { 
+      pickupAddress, 
+      dropoffAddress, 
+      secondDropoffAddress: currentSecondDropoff,
+      showSecondDropoff 
+    })
+
+    try {
+      // Clear existing route and markers
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setMap(null)
+        directionsRendererRef.current = null
+      }
+      clearCustomMarkers()
+
+      const directionsService = new window.google.maps.DirectionsService()
+      
+      // For multiple dropoffs: pickup → first dropoff → second dropoff
+      const waypoints = [{
+        location: dropoffAddress,
+        stopover: true
+      }]
+
+      const request = {
+        origin: pickupAddress,
+        destination: currentSecondDropoff,
+        waypoints: waypoints,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        optimizeWaypoints: false // Don't optimize to maintain order
+      }
+
+      console.log('Directions request:', request)
+      const result = await directionsService.route(request)
+
+      if (result.routes && result.routes.length > 0) {
+        // Calculate total distance and time
+        let totalDistance = 0
+        let totalTime = 0
+        
+        result.routes[0].legs.forEach(leg => {
+          totalDistance += leg.distance.value
+          totalTime += leg.duration.value
+        })
+
+        const distanceKm = totalDistance / 1000
+        const timeMinutes = Math.round(totalTime / 60)
+        
+        setDistance(distanceKm)
+        setTravelTime(timeMinutes)
+        
+        // Calculate fare
+        const calculatedFare = Math.max(
+          settings.minFare,
+          settings.baseFare + (settings.perKmRate * distanceKm)
+        )
+        setFare(calculatedFare)
+        
+        // Display route on map with custom markers
+        const directionsRenderer = new window.google.maps.DirectionsRenderer({
+          suppressMarkers: true, // Hide default markers
+          polylineOptions: {
+            strokeColor: '#3B82F6',
+            strokeWeight: 4
+          }
+        })
+        directionsRenderer.setMap(mapInstanceRef.current)
+        directionsRenderer.setDirections(result)
+        directionsRendererRef.current = directionsRenderer
+
+        // Add custom markers for our specific locations
+        await addCustomMarkers(currentSecondDropoff)
+        
+        console.log('Multi-dropoff route calculated successfully:', { distanceKm, timeMinutes, calculatedFare })
+      }
+    } catch (error) {
+      console.error('Error calculating multi-dropoff route:', error)
+      // Fallback to single route if multi-dropoff fails
+      if (pickupAddress && dropoffAddress) {
+        calculateRouteWithAddresses(pickupAddress, dropoffAddress)
+      }
+    }
+  }
+
+  const addCustomMarkers = async (providedSecondDropoff = null) => {
+    if (!window.google || !window.google.maps || !mapInstanceRef.current) return
+
+    // Clear existing custom markers
+    clearCustomMarkers()
+
+    const markers = []
+    const geocoder = new window.google.maps.Geocoder()
+
+    // Use provided address or fall back to state
+    const currentSecondDropoff = providedSecondDropoff || secondDropoffAddress
+
+    console.log('Adding custom markers for addresses:', { pickupAddress, dropoffAddress, secondDropoffAddress: currentSecondDropoff })
+
+    // Helper function to create a marker
+    const createMarker = (position, title, iconUrl, labelText, color) => {
+      return new window.google.maps.Marker({
+        position: position,
+        map: mapInstanceRef.current,
+        title: title,
+        icon: {
+          url: iconUrl,
+          scaledSize: new window.google.maps.Size(32, 32)
+        },
+        label: {
+          text: labelText,
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: '12px'
+        }
+      })
+    }
+
+    // Helper function to geocode an address
+    const geocodeAddress = (address, markerInfo) => {
+      return new Promise((resolve, reject) => {
+        console.log(`Geocoding address: ${address}`)
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            console.log(`Successfully geocoded ${address}:`, results[0].geometry.location.toString())
+            const marker = createMarker(
+              results[0].geometry.location,
+              markerInfo.title,
+              markerInfo.iconUrl,
+              markerInfo.labelText,
+              markerInfo.color
+            )
+            resolve(marker)
+          } else {
+            console.error(`Geocoding failed for ${address}:`, status)
+            reject(new Error(`Geocoding failed for ${address}: ${status}`))
+          }
+        })
+      })
+    }
+
+    try {
+      // Geocode all addresses in parallel
+      const geocodePromises = []
+
+      // Add pickup marker
+      if (pickupAddress) {
+        geocodePromises.push(
+          geocodeAddress(pickupAddress, {
+            title: 'Pickup',
+            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+            labelText: 'P',
+            color: 'white'
+          })
+        )
+      }
+
+      // Add first dropoff marker
+      if (dropoffAddress) {
+        geocodePromises.push(
+          geocodeAddress(dropoffAddress, {
+            title: 'First Drop-off',
+            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+            labelText: '1',
+            color: 'white'
+          })
+        )
+      }
+
+      // Add second dropoff marker
+      if (currentSecondDropoff) {
+        geocodePromises.push(
+          geocodeAddress(currentSecondDropoff, {
+            title: 'Second Drop-off',
+            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            labelText: '2',
+            color: 'white'
+          })
+        )
+      }
+
+      // Wait for all geocoding to complete
+      const markerResults = await Promise.allSettled(geocodePromises)
+      
+      // Add successful markers to the array
+      markerResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          markers.push(result.value)
+          console.log(`Successfully added marker ${index + 1}`)
+        } else {
+          console.error(`Failed to add marker ${index + 1}:`, result.reason)
+        }
+      })
+
+      customMarkersRef.current = markers
+      console.log(`Successfully created ${markers.length} custom markers`)
+      
+      // Log marker positions for debugging
+      markers.forEach((marker, index) => {
+        console.log(`Marker ${index + 1} position:`, marker.getPosition().toString())
+      })
+
+    } catch (error) {
+      console.error('Error in addCustomMarkers:', error)
+    }
+  }
+
+  const clearCustomMarkers = () => {
+    if (customMarkersRef.current) {
+      customMarkersRef.current.forEach(marker => {
+        marker.setMap(null)
+      })
+      customMarkersRef.current = []
     }
   }
 
@@ -208,6 +501,19 @@ function App() {
       }, 500)
     }
   }, [isMapLoaded])
+
+  // Initialize second dropoff autocomplete when the field becomes visible
+  useEffect(() => {
+    if (showSecondDropoff && isMapLoaded) {
+      // Add a small delay to ensure the DOM element is rendered
+      setTimeout(() => {
+        initializeSecondDropoffAutocomplete()
+      }, 100)
+    }
+  }, [showSecondDropoff, isMapLoaded])
+
+  // Note: Map updates for second dropoff are now handled only by autocomplete place_changed events
+  // This ensures the map only updates when a valid address is selected, not while typing
 
   const calculateRouteWithAddresses = async (pickup, dropoff) => {
     if (!pickup || !dropoff) {
@@ -251,15 +557,25 @@ function App() {
         )
         setFare(calculatedFare)
         
-        // Display route on map
+        // Display route on map with custom markers
         if (directionsRendererRef.current) {
           directionsRendererRef.current.setMap(null)
         }
+        clearCustomMarkers()
         
-        const directionsRenderer = new window.google.maps.DirectionsRenderer()
+        const directionsRenderer = new window.google.maps.DirectionsRenderer({
+          suppressMarkers: true, // Hide default markers
+          polylineOptions: {
+            strokeColor: '#3B82F6',
+            strokeWeight: 4
+          }
+        })
         directionsRenderer.setMap(mapInstanceRef.current)
         directionsRenderer.setDirections(result)
         directionsRendererRef.current = directionsRenderer
+
+        // Add custom markers for single route
+        await addCustomMarkers()
         
         console.log('Route calculated successfully:', { distanceKm, timeMinutes, calculatedFare })
       }
@@ -277,7 +593,11 @@ function App() {
       return
     }
 
-    await calculateRouteWithAddresses(pickupAddress, dropoffAddress)
+    if (secondDropoffAddress) {
+      await updateMapWithMultipleDropoffs()
+    } else {
+      await calculateRouteWithAddresses(pickupAddress, dropoffAddress)
+    }
   }
 
   const sendBookingEmail = async () => {
@@ -299,6 +619,7 @@ function App() {
         customer_name: customerName,
         pickup_address: pickupAddress,
         dropoff_address: dropoffAddress,
+        second_dropoff_address: secondDropoffAddress || 'Not specified',
         pickup_date: pickupDate,
         pickup_time: pickupTime,
         email_address: emailAddress,
@@ -352,6 +673,16 @@ function App() {
     setFare(null)
     setPickupAddress('')
     setDropoffAddress('')
+    setSecondDropoffAddress('')
+    setShowSecondDropoff(false)
+    
+    // Clear autocomplete references
+    if (autocompleteRefs.current.secondDropoff) {
+      autocompleteRefs.current.secondDropoff = null
+    }
+    
+    // Clear custom markers
+    clearCustomMarkers()
     
     // Clear the map route
     if (directionsRendererRef.current) {
@@ -372,10 +703,31 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <h1 className={`text-2xl font-bold flex items-center transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              
+              Moncton Taxi
             </h1>
             
             <div className="flex items-center space-x-3">
+              {/* Contact Us Button */}
+              <button
+                onClick={() => window.open('mailto:info@monctontaxi.com', '_blank')}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 bg-white hover:bg-gray-100 text-black border border-gray-300"
+                title="Contact Us"
+              >
+                Contact us
+              </button>
+              
+              {/* Services Button */}
+              <button
+                onClick={() => {
+                  // You can add navigation to a services page or show a modal
+                  alert('Services: Airport transfers, City tours, Corporate transportation, Special events, Hourly rates available')
+                }}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 bg-white hover:bg-gray-100 text-black border border-gray-300"
+                title="Our Services"
+              >
+                Services
+              </button>
+              
               {/* Dark Mode Toggle */}
               <button
                 onClick={toggleTheme}
@@ -473,7 +825,76 @@ function App() {
                       </svg>
                     </div>
                   </div>
+                  
+                  {/* Plus Button for Second Dropoff */}
+                  {!showSecondDropoff && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSecondDropoff(true)}
+                      className={`mt-2 flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                        isDarkMode 
+                          ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-600' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-300'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      <span>Add Second Drop-off</span>
+                    </button>
+                  )}
                 </div>
+
+                {/* Second Dropoff Address Field */}
+                {showSecondDropoff && (
+                  <div>
+                    <label htmlFor="second-dropoff-address" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Second Drop-off Address
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="second-dropoff-address"
+                        type="text"
+                        placeholder=""
+                        value={secondDropoffAddress}
+                        onChange={(e) => setSecondDropoffAddress(e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 transition-colors duration-200 ${
+                          isDarkMode 
+                            ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                        }`}
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg className={`h-5 w-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    {/* Remove Second Dropoff Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSecondDropoff(false)
+                        setSecondDropoffAddress('')
+                        // Clear autocomplete reference
+                        if (autocompleteRefs.current.secondDropoff) {
+                          autocompleteRefs.current.secondDropoff = null
+                        }
+                      }}
+                      className={`mt-2 flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                        isDarkMode 
+                          ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400 hover:text-red-300 border border-red-700/50' 
+                          : 'bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border border-red-200'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>Remove Second Drop-off</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Additional Customer Information */}
                 <div>
@@ -565,6 +986,19 @@ function App() {
                 </div>
       </div>
 
+              {/* Calculate Multi-Stop Route Button */}
+              {secondDropoffAddress && (
+                <div className="mt-4">
+                  <button
+                    onClick={updateMapWithMultipleDropoffs}
+                    disabled={!pickupAddress || !dropoffAddress || !secondDropoffAddress || isCalculating}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                  >
+                    {isCalculating ? 'Calculating...' : 'Calculate Multi-Stop Route'}
+                  </button>
+                </div>
+              )}
+
               {/* Calculate Button */}
               <div className="mt-6">
                 <button
@@ -608,6 +1042,12 @@ function App() {
                     <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{dropoffAddress}</p>
                   </div>
                 </div>
+                {secondDropoffAddress && (
+                  <div className="mb-4">
+                    <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Second Drop-off</p>
+                    <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{secondDropoffAddress}</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
                     <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Distance</p>
