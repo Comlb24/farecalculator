@@ -20,8 +20,7 @@ function App() {
   
   // Customer information state
   const [customerName, setCustomerName] = useState('')
-  const [pickupDate, setPickupDate] = useState('')
-  const [pickupTime, setPickupTime] = useState('')
+  const [pickupDateTime, setPickupDateTime] = useState('')
   const [emailAddress, setEmailAddress] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [message, setMessage] = useState('')
@@ -627,8 +626,7 @@ function App() {
         pickup_address: pickupAddress,
         dropoff_address: dropoffAddress,
         second_dropoff_address: secondDropoffAddress || 'Not specified',
-        pickup_date: pickupDate,
-        pickup_time: pickupTime,
+        pickup_datetime: pickupDateTime,
         email_address: emailAddress,
         phone_number: phoneNumber,
         message: message || 'No special requests',
@@ -653,8 +651,7 @@ function App() {
       // Clear the form after successful booking
       clearResults()
       setCustomerName('')
-      setPickupDate('')
-      setPickupTime('')
+      setPickupDateTime('')
       setEmailAddress('')
       setPhoneNumber('')
       setMessage('')
@@ -878,37 +875,123 @@ function App() {
                 </div>
 
                 <div>
-                  <label htmlFor="pickup-date" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Date
+                  <label className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Date & Time
                   </label>
-                  <input
-                    id="pickup-date"
-                    type="date"
-                    value={pickupDate}
-                    onChange={(e) => setPickupDate(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                  <div className="flex gap-2">
+                    {/* Date Input */}
+                    <input
+                      type="date"
+                      value={pickupDateTime.split('T')[0] || ''}
+                      onChange={(e) => {
+                        const time = pickupDateTime.split('T')[1] || '12:00'
+                        setPickupDateTime(`${e.target.value}T${time}`)
+                      }}
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                        isDarkMode 
+                          ? 'bg-gray-900 border-gray-700 text-white' 
+                          : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                    />
+                    
+                    {/* Simple Time Picker - 12 Hour Format */}
+                    <div className={`flex-1 flex border rounded-lg transition-colors duration-200 ${
                       isDarkMode 
-                        ? 'bg-gray-900 border-gray-700 text-white' 
-                        : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="pickup-time" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Pickup Time
-                  </label>
-                  <input
-                    id="pickup-time"
-                    type="time"
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-900 border-gray-700 text-white' 
-                        : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                  />
+                        ? 'bg-gray-900 border-gray-700' 
+                        : 'border-gray-300 bg-white'
+                    }`}>
+                      {/* Hours Dropdown */}
+                      <select
+                        value={(() => {
+                          const currentTime = pickupDateTime.split('T')[1] || '12:00'
+                          const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                          return currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24
+                        })()}
+                        onChange={(e) => {
+                          const currentTime = pickupDateTime.split('T')[1] || '12:00'
+                          const minutes = currentTime.split(':')[1] || '00'
+                          const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                          const isPM = currentHour24 >= 12
+                          const newHour12 = parseInt(e.target.value)
+                          const newHour24 = newHour12 === 12 ? (isPM ? 12 : 0) : (isPM ? newHour12 + 12 : newHour12)
+                          const newHour24Str = newHour24.toString().padStart(2, '0')
+                          setPickupDateTime(`${pickupDateTime.split('T')[0]}T${newHour24Str}:${minutes}`)
+                        }}
+                        className={`flex-1 px-3 py-2 border-0 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                          isDarkMode 
+                            ? 'bg-gray-900 text-white' 
+                            : 'bg-white text-gray-900'
+                        }`}
+                      >
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            {(i + 1).toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                      
+                      {/* Separator */}
+                      <div className={`flex items-center px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        :
+                      </div>
+                      
+                      {/* Minutes Dropdown */}
+                      <select
+                        value={pickupDateTime.split('T')[1]?.split(':')[1] || '00'}
+                        onChange={(e) => {
+                          const currentTime = pickupDateTime.split('T')[1] || '12:00'
+                          const hours = currentTime.split(':')[0] || '12'
+                          setPickupDateTime(`${pickupDateTime.split('T')[0]}T${hours}:${e.target.value}`)
+                        }}
+                        className={`flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                          isDarkMode 
+                            ? 'bg-gray-900 text-white' 
+                            : 'bg-white text-gray-900'
+                        }`}
+                      >
+                        {Array.from({ length: 60 }, (_, i) => (
+                          <option key={i} value={i.toString().padStart(2, '0')}>
+                            {i.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                      
+                      {/* AM/PM Toggle */}
+                      <div className="flex">
+                        {['AM', 'PM'].map((period) => {
+                          const currentTime = pickupDateTime.split('T')[1] || '12:00'
+                          const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                          const isPM = currentHour24 >= 12
+                          const isCurrentPeriod = (period === 'PM') === isPM
+                          
+                          return (
+                            <button
+                              key={period}
+                              type="button"
+                              onClick={() => {
+                                const currentTime = pickupDateTime.split('T')[1] || '12:00'
+                                const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                                const minutes = currentTime.split(':')[1] || '00'
+                                const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24
+                                const newHour24 = period === 'PM' 
+                                  ? (currentHour12 === 12 ? 12 : currentHour12 + 12)
+                                  : (currentHour12 === 12 ? 0 : currentHour12)
+                                const newHour24Str = newHour24.toString().padStart(2, '0')
+                                setPickupDateTime(`${pickupDateTime.split('T')[0]}T${newHour24Str}:${minutes}`)
+                              }}
+                              className={`px-3 py-2 text-sm font-medium border-0 transition-colors duration-200 ${
+                                isCurrentPeriod 
+                                  ? `${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'}`
+                                  : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`
+                              } ${period === 'AM' ? 'rounded-l-lg' : 'rounded-r-lg'}`}
+                            >
+                              {period}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
