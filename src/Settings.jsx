@@ -4,12 +4,32 @@ import { useTheme } from './ThemeContext.jsx'
 
 const Settings = () => {
   const { isDarkMode } = useTheme()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loginCredentials, setLoginCredentials] = useState({
+    username: '',
+    password: ''
+  })
+  const [loginError, setLoginError] = useState('')
   const [settings, setSettings] = useState({
     perKmRate: 1.65,
     baseFare: 3.00,
     minFare: 25.00,
     currency: 'CAD'
   })
+
+  // Default admin credentials (in a real app, this would be handled securely)
+  const ADMIN_CREDENTIALS = {
+    username: 'admin',
+    password: 'admin123'
+  }
+
+  // Check if user is already authenticated on component mount
+  useEffect(() => {
+    const authStatus = localStorage.getItem('isAuthenticated')
+    if (authStatus === 'true') {
+      setIsAuthenticated(true)
+    }
+  }, [])
 
   // Load settings from localStorage on component mount
   useEffect(() => {
@@ -23,6 +43,38 @@ const Settings = () => {
   useEffect(() => {
     localStorage.setItem('fareSettings', JSON.stringify(settings))
   }, [settings])
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    setLoginError('')
+    
+    if (loginCredentials.username === ADMIN_CREDENTIALS.username && 
+        loginCredentials.password === ADMIN_CREDENTIALS.password) {
+      setIsAuthenticated(true)
+      localStorage.setItem('isAuthenticated', 'true')
+      setLoginCredentials({ username: '', password: '' })
+    } else {
+      setLoginError('Invalid username or password')
+    }
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    localStorage.removeItem('isAuthenticated')
+    setLoginCredentials({ username: '', password: '' })
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setLoginCredentials(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    // Clear error when user starts typing
+    if (loginError) {
+      setLoginError('')
+    }
+  }
 
   const updateSetting = (key, value) => {
     setSettings(prev => ({
@@ -50,8 +102,12 @@ const Settings = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className={`text-3xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Fare Settings</h1>
-              <p className={`mt-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Configure your taxi fare calculation parameters</p>
+              <h1 className={`text-3xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {isAuthenticated ? 'Fare Settings' : 'Admin Login'}
+              </h1>
+              <p className={`mt-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                {isAuthenticated ? 'Configure your taxi fare calculation parameters' : 'Please login to access settings'}
+              </p>
             </div>
             <Link
               to="/"
@@ -66,12 +122,119 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Settings Form */}
-        <div className={`rounded-xl shadow-lg p-8 border transition-colors duration-200 ${
-          isDarkMode 
-            ? 'bg-black border-gray-800' 
-            : 'bg-white border-gray-100'
-        }`}>
+        {/* Login Form */}
+        {!isAuthenticated ? (
+          <div className={`rounded-xl shadow-lg p-8 border transition-colors duration-200 ${
+            isDarkMode 
+              ? 'bg-black border-gray-800' 
+              : 'bg-white border-gray-100'
+          }`}>
+            <div className="max-w-md mx-auto">
+              <div className="text-center mb-8">
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+                  isDarkMode ? 'bg-blue-900/20' : 'bg-blue-100'
+                }`}>
+                  <svg className={`w-8 h-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h2 className={`text-2xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Admin Access Required
+                </h2>
+                <p className={`mt-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Enter your credentials to access fare settings
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label htmlFor="username" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    value={loginCredentials.username}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                    }`}
+                    placeholder="Enter username"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={loginCredentials.password}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                    }`}
+                    placeholder="Enter password"
+                  />
+                </div>
+
+                {loginError && (
+                  <div className={`p-4 rounded-lg border transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-red-900/20 border-red-700/30' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>
+                      {loginError}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Login
+                </button>
+              </form>
+
+            </div>
+          </div>
+        ) : (
+          /* Settings Form - Only shown when authenticated */
+          <>
+            {/* Logout Button */}
+            <div className="mb-6 flex justify-end">
+              <button
+                onClick={handleLogout}
+                className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                  isDarkMode 
+                    ? 'border-red-600 text-red-300 bg-red-900/20 hover:bg-red-900/30' 
+                    : 'border-red-300 text-red-700 bg-white hover:bg-red-50'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
+            </div>
+
+            {/* Settings Form */}
+            <div className={`rounded-xl shadow-lg p-8 border transition-colors duration-200 ${
+              isDarkMode 
+                ? 'bg-black border-gray-800' 
+                : 'bg-white border-gray-100'
+            }`}>
           <div className="space-y-8">
             {/* Per Kilometer Rate */}
             <div>
@@ -214,13 +377,15 @@ const Settings = () => {
                 Save & Return to Calculator
               </Link>
             </div>
-          </div>
-        </div>
 
-        {/* Footer Info */}
-        <div className={`mt-8 text-center text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          <p>Settings are automatically saved and will be used for all fare calculations</p>
-        </div>
+            {/* Footer Info */}
+            <div className={`mt-8 text-center text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p>Settings are automatically saved and will be used for all fare calculations</p>
+            </div>
+          </div>
+          </div>
+        </>
+        )}
       </div>
     </div>
   )
