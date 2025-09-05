@@ -24,6 +24,7 @@ function App() {
   const [pickupTime, setPickupTime] = useState('')
   const [emailAddress, setEmailAddress] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [message, setMessage] = useState('')
   
   // EmailJS configuration
   const [emailConfig] = useState({
@@ -242,12 +243,10 @@ function App() {
             setSecondDropoffAddress(displayName)
             console.log('Current state values:', { pickupAddress, dropoffAddress, secondDropoffAddress: displayName })
             
-            // Update map to show both dropoff locations with a delay to ensure state is updated
-            setTimeout(() => {
-              console.log('Calling updateMapWithMultipleDropoffs from second dropoff listener')
-              console.log('State values at timeout:', { pickupAddress, dropoffAddress, secondDropoffAddress: displayName })
-              updateMapWithMultipleDropoffs(displayName)
-            }, 500)
+            // Update map immediately with the selected address
+            console.log('Calling updateMapWithMultipleDropoffs from second dropoff listener')
+            console.log('Using provided address:', displayName)
+            updateMapWithMultipleDropoffs(displayName)
           } else {
             console.warn('Second dropoff place selection failed - invalid place object or no geometry')
             console.log('Place object details:', { 
@@ -284,6 +283,12 @@ function App() {
       secondDropoffAddress: currentSecondDropoff,
       showSecondDropoff 
     })
+
+    // Set calculating state
+    setIsCalculating(true)
+    setDistance(null)
+    setTravelTime(null)
+    setFare(null)
 
     try {
       // Clear existing route and markers
@@ -358,6 +363,8 @@ function App() {
       if (pickupAddress && dropoffAddress) {
         calculateRouteWithAddresses(pickupAddress, dropoffAddress)
       }
+    } finally {
+      setIsCalculating(false)
     }
   }
 
@@ -624,6 +631,7 @@ function App() {
         pickup_time: pickupTime,
         email_address: emailAddress,
         phone_number: phoneNumber,
+        message: message || 'No special requests',
         distance: distance ? `${distance.toFixed(2)} km` : 'Not calculated',
         travel_time: travelTime ? `${travelTime} minutes` : 'Not calculated',
         estimated_fare: fare ? `${settings.currency} ${fare.toFixed(2)}` : 'Not calculated',
@@ -649,6 +657,7 @@ function App() {
       setPickupTime('')
       setEmailAddress('')
       setPhoneNumber('')
+      setMessage('')
 
     } catch (error) {
       console.error('Error sending email:', error)
@@ -707,27 +716,6 @@ function App() {
             </h1>
             
             <div className="flex items-center space-x-3">
-              {/* Contact Us Button */}
-              <button
-                onClick={() => window.open('mailto:info@monctontaxi.com', '_blank')}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 bg-white hover:bg-gray-100 text-black border border-gray-300"
-                title="Contact Us"
-              >
-                Contact us
-              </button>
-              
-              {/* Services Button */}
-              <button
-                onClick={() => {
-                  // You can add navigation to a services page or show a modal
-                  alert('Services: Airport transfers, City tours, Corporate transportation, Special events, Hourly rates available')
-                }}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 bg-white hover:bg-gray-100 text-black border border-gray-300"
-                title="Our Services"
-              >
-                Services
-              </button>
-              
               {/* Dark Mode Toggle */}
               <button
                 onClick={toggleTheme}
@@ -824,25 +812,22 @@ function App() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </div>
+                    
+                    {/* Plus Button for Second Dropoff - positioned under magnifying glass */}
+                    {!showSecondDropoff && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSecondDropoff(true)}
+                        className={`absolute top-8 right-3 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105 ${
+                          isDarkMode 
+                            ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-600' 
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-300'
+                        }`}
+                      >
+                        <span>+Address</span>
+                      </button>
+                    )}
                   </div>
-                  
-                  {/* Plus Button for Second Dropoff */}
-                  {!showSecondDropoff && (
-                    <button
-                      type="button"
-                      onClick={() => setShowSecondDropoff(true)}
-                      className={`mt-2 flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 ${
-                        isDarkMode 
-                          ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-600' 
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-300'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                      <span>Add Second Drop-off</span>
-                    </button>
-                  )}
                 </div>
 
                 {/* Second Dropoff Address Field */}
@@ -978,6 +963,24 @@ function App() {
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="message" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Message / Special Requests
+                  </label>
+                  <textarea
+                    id="message"
+                    rows={2}
+                    placeholder="Add your flight number or request a child seat or anything that can help us make your experience better"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-none ${
                       isDarkMode 
                         ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                         : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
