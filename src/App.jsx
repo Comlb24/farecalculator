@@ -855,29 +855,6 @@ function App() {
                         </svg>
                       </div>
                     </div>
-                    
-                    {/* Remove Second Dropoff Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSecondDropoff(false)
-                        setSecondDropoffAddress('')
-                        // Clear autocomplete reference
-                        if (autocompleteRefs.current.secondDropoff) {
-                          autocompleteRefs.current.secondDropoff = null
-                        }
-                      }}
-                      className={`mt-2 flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 ${
-                        isDarkMode 
-                          ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400 hover:text-red-300 border border-red-700/50' 
-                          : 'bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border border-red-200'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>Remove Second Drop-off</span>
-                    </button>
                   </div>
                 )}
 
