@@ -24,6 +24,13 @@ function App() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [message, setMessage] = useState('')
   
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState({
+    customerName: false,
+    emailAddress: false,
+    phoneNumber: false
+  })
+  
   // EmailJS configuration
   const [emailConfig] = useState({
     serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_nrynudw',
@@ -705,7 +712,34 @@ function App() {
     }
   }
 
+  // Validation function
+  const validateRequiredFields = () => {
+    const errors = {
+      customerName: !customerName.trim(),
+      emailAddress: !emailAddress.trim(),
+      phoneNumber: !phoneNumber.trim()
+    }
+    
+    setValidationErrors(errors)
+    
+    // Return true if all fields are valid
+    return !Object.values(errors).some(error => error)
+  }
+
+  // Clear validation error for a specific field
+  const clearValidationError = (fieldName) => {
+    setValidationErrors(prev => ({
+      ...prev,
+      [fieldName]: false
+    }))
+  }
+
   const handleBookNow = async () => {
+    // Validate required fields first
+    if (!validateRequiredFields()) {
+      return // Stop if validation fails
+    }
+    
     // First calculate the route and fare
     await calculateRoute()
     
@@ -751,6 +785,20 @@ function App() {
     setDropoffAddress('')
     setSecondDropoffAddress('')
     setShowSecondDropoff(false)
+    
+    // Clear customer information
+    setCustomerName('')
+    setPickupDateTime('')
+    setEmailAddress('')
+    setPhoneNumber('')
+    setMessage('')
+    
+    // Clear validation errors
+    setValidationErrors({
+      customerName: false,
+      emailAddress: false,
+      phoneNumber: false
+    })
     
     // Clear autocomplete references
     if (autocompleteRefs.current.secondDropoff) {
@@ -1056,55 +1104,70 @@ function App() {
 
                 <div>
                   <label htmlFor="customer-name" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Name
+                    Name {validationErrors.customerName && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     id="customer-name"
                     type="text"
                     placeholder=""
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value)
+                      clearValidationError('customerName')
+                    }}
                     className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                      validationErrors.customerName
+                        ? 'border-red-500 ring-2 ring-red-200'
+                        : isDarkMode 
+                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                     }`}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="email-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Email Address
+                    Email Address {validationErrors.emailAddress && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     id="email-address"
                     type="email"
                     placeholder=""
                     value={emailAddress}
-                    onChange={(e) => setEmailAddress(e.target.value)}
+                    onChange={(e) => {
+                      setEmailAddress(e.target.value)
+                      clearValidationError('emailAddress')
+                    }}
                     className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                      validationErrors.emailAddress
+                        ? 'border-red-500 ring-2 ring-red-200'
+                        : isDarkMode 
+                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                     }`}
                   />
                 </div>
 
       <div>
                   <label htmlFor="phone-number" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Phone Number
+                    Phone Number {validationErrors.phoneNumber && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     id="phone-number"
                     type="tel"
                     placeholder="+1 (555) 123-4567"
                     value={phoneNumber}
-                    onChange={handlePhoneNumberChange}
+                    onChange={(e) => {
+                      handlePhoneNumberChange(e)
+                      clearValidationError('phoneNumber')
+                    }}
                     maxLength={17} // +1 (XXX) XXX-XXXX = 17 characters
                     className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                      validationErrors.phoneNumber
+                        ? 'border-red-500 ring-2 ring-red-200'
+                        : isDarkMode 
+                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                     }`}
                   />
                 </div>
