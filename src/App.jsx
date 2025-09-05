@@ -129,14 +129,13 @@ function App() {
         const pickupInput = document.getElementById('pickup-address')
         if (pickupInput) {
           const pickupAutocomplete = new window.google.maps.places.Autocomplete(pickupInput, {
-            types: ['establishment'],
             fields: ['formatted_address', 'geometry', 'name', 'place_id']
           })
 
           pickupAutocomplete.addListener('place_changed', () => {
             const place = pickupAutocomplete.getPlace()
             if (place && place.formatted_address) {
-              const displayName = place.name || place.formatted_address
+              const displayName = place.formatted_address
               setPickupAddress(displayName)
               console.log('Pickup place selected:', displayName)
               
@@ -165,7 +164,6 @@ function App() {
         const dropoffInput = document.getElementById('dropoff-address')
         if (dropoffInput) {
           const dropoffAutocomplete = new window.google.maps.places.Autocomplete(dropoffInput, {
-            types: ['establishment'],
             fields: ['formatted_address', 'geometry', 'name', 'place_id']
           })
 
@@ -174,7 +172,7 @@ function App() {
             const place = dropoffAutocomplete.getPlace()
             console.log('Dropoff place object:', place)
             if (place && place.formatted_address) {
-              const displayName = place.name || place.formatted_address
+              const displayName = place.formatted_address
               setDropoffAddress(displayName)
               console.log('Dropoff place selected:', displayName)
               
@@ -225,7 +223,6 @@ function App() {
       const secondDropoffInput = document.getElementById('second-dropoff-address')
       if (secondDropoffInput && !autocompleteRefs.current.secondDropoff) {
         const secondDropoffAutocomplete = new window.google.maps.places.Autocomplete(secondDropoffInput, {
-          types: ['establishment'],
           fields: ['formatted_address', 'geometry', 'name', 'place_id']
         })
 
@@ -236,7 +233,7 @@ function App() {
           
           // Only proceed if we have a valid place with geometry (actual selection, not just typing)
           if (place && place.formatted_address && place.geometry && place.geometry.location) {
-            const displayName = place.name || place.formatted_address
+            const displayName = place.formatted_address
             console.log('Valid second dropoff place selected:', displayName)
             console.log('Setting secondDropoffAddress to:', displayName)
             setSecondDropoffAddress(displayName)
@@ -540,11 +537,15 @@ function App() {
     try {
       const directionsService = new window.google.maps.DirectionsService()
       
+      console.log('Calculating route with addresses:', { pickup, dropoff })
+      
       const result = await directionsService.route({
         origin: pickup,
         destination: dropoff,
         travelMode: window.google.maps.TravelMode.DRIVING
       })
+      
+      console.log('Directions API result:', result)
 
       if (result.routes && result.routes.length > 0) {
         const route = result.routes[0]
@@ -587,7 +588,13 @@ function App() {
       }
     } catch (error) {
       console.error('Error calculating route:', error)
-      alert('Error calculating route. Please check your addresses and try again.')
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        pickup,
+        dropoff
+      })
+      alert(`Error calculating route: ${error.message || 'Please check your addresses and try again.'}`)
     } finally {
       setIsCalculating(false)
     }
@@ -670,6 +677,35 @@ function App() {
     
     // Then send the booking email
     await sendBookingEmail()
+  }
+
+  // Phone number formatting function
+  const formatPhoneNumber = (value) => {
+    // Remove all non-numeric characters
+    const phoneNumber = value.replace(/\D/g, '')
+    
+    // If empty, return empty string
+    if (!phoneNumber) return ''
+    
+    // If it starts with 1, remove it since we'll add +1
+    const cleanNumber = phoneNumber.startsWith('1') ? phoneNumber.slice(1) : phoneNumber
+    
+    // Limit to 10 digits (North American phone number)
+    const limitedNumber = cleanNumber.slice(0, 10)
+    
+    // Format as +1 (XXX) XXX-XXXX
+    if (limitedNumber.length <= 3) {
+      return `+1 (${limitedNumber}`
+    } else if (limitedNumber.length <= 6) {
+      return `+1 (${limitedNumber.slice(0, 3)}) ${limitedNumber.slice(3)}`
+    } else {
+      return `+1 (${limitedNumber.slice(0, 3)}) ${limitedNumber.slice(3, 6)}-${limitedNumber.slice(6)}`
+    }
+  }
+
+  const handlePhoneNumberChange = (e) => {
+    const formatted = formatPhoneNumber(e.target.value)
+    setPhoneNumber(formatted)
   }
 
   const clearResults = () => {
@@ -761,7 +797,7 @@ function App() {
             
             {/* Address Inputs */}
             <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-5 border transition-colors duration-200`}>
-              <h2 className={`text-xl font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Route Details</h2>
+              <h2 className={`text-xl font-semibold mb-3 text-center transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Route Details</h2>
               <div className="space-y-3">
                 <div>
                   <label htmlFor="pickup-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -856,24 +892,6 @@ function App() {
                 )}
 
                 {/* Additional Customer Information */}
-                <div>
-                  <label htmlFor="customer-name" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Name
-                  </label>
-                  <input
-                    id="customer-name"
-                    type="text"
-                    placeholder=""
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
-                    }`}
-                  />
-                </div>
-
                 <div>
                   <label className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Date & Time
@@ -995,6 +1013,24 @@ function App() {
                 </div>
 
                 <div>
+                  <label htmlFor="customer-name" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Name
+                  </label>
+                  <input
+                    id="customer-name"
+                    type="text"
+                    placeholder=""
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                    }`}
+                  />
+                </div>
+
+                <div>
                   <label htmlFor="email-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Email Address
                   </label>
@@ -1004,7 +1040,7 @@ function App() {
                     placeholder=""
                     value={emailAddress}
                     onChange={(e) => setEmailAddress(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                         : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
@@ -1019,10 +1055,11 @@ function App() {
                   <input
                     id="phone-number"
                     type="tel"
-                    placeholder=""
+                    placeholder="+1 (555) 123-4567"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    onChange={handlePhoneNumberChange}
+                    maxLength={17} // +1 (XXX) XXX-XXXX = 17 characters
+                    className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                       isDarkMode 
                         ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
                         : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
