@@ -29,10 +29,12 @@ Customer Information:
 - Name: {{customer_name}}
 - Email: {{email_address}}
 - Phone: {{phone_number}}
+- Message: {{message}}
 
 Booking Details:
 - Pickup Address: {{pickup_address}}
 - Drop-off Address: {{dropoff_address}}
+- Second Drop-off Address: {{second_dropoff_address}}
 - Pickup Date: {{pickup_date}}
 - Pickup Time: {{pickup_time}}
 

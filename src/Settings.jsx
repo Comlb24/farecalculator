@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTheme } from './ThemeContext.jsx'
 
 const Settings = () => {
+  const { isDarkMode } = useTheme()
   const [settings, setSettings] = useState({
     perKmRate: 1.65,
     baseFare: 3.00,
@@ -42,18 +44,22 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className={`min-h-screen py-8 transition-colors duration-200 ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Fare Settings</h1>
-              <p className="mt-2 text-gray-600">Configure your taxi fare calculation parameters</p>
+              <h1 className={`text-3xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Fare Settings</h1>
+              <p className={`mt-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Configure your taxi fare calculation parameters</p>
             </div>
             <Link
               to="/"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                isDarkMode 
+                  ? 'border-gray-600 text-gray-300 bg-gray-800 hover:bg-gray-700' 
+                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+              }`}
             >
               ← Back to Calculator
             </Link>
@@ -61,11 +67,15 @@ const Settings = () => {
         </div>
 
         {/* Settings Form */}
-        <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+        <div className={`rounded-xl shadow-lg p-8 border transition-colors duration-200 ${
+          isDarkMode 
+            ? 'bg-black border-gray-800' 
+            : 'bg-white border-gray-100'
+        }`}>
           <div className="space-y-8">
             {/* Per Kilometer Rate */}
             <div>
-              <label className="block text-lg font-medium text-gray-900 mb-3">
+              <label className={`block text-lg font-medium mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Per Kilometer Rate ({settings.currency})
               </label>
               <div className="flex items-center space-x-4">
@@ -75,19 +85,23 @@ const Settings = () => {
                   min="0"
                   value={settings.perKmRate}
                   onChange={(e) => updateSetting('perKmRate', e.target.value)}
-                  className="flex-1 px-4 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`flex-1 px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                  }`}
                   placeholder="2.25"
                 />
-                <span className="text-gray-500 text-sm">per km</span>
+                <span className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>per km</span>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className={`mt-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 The rate charged per kilometer traveled
               </p>
             </div>
 
             {/* Base Fare */}
             <div>
-              <label className="block text-lg font-medium text-gray-900 mb-3">
+              <label className={`block text-lg font-medium mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Base Fare ({settings.currency})
               </label>
               <div className="flex items-center space-x-4">
@@ -97,19 +111,23 @@ const Settings = () => {
                   min="0"
                   value={settings.baseFare}
                   onChange={(e) => updateSetting('baseFare', e.target.value)}
-                  className="flex-1 px-4 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`flex-1 px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                  }`}
                   placeholder="3.00"
                 />
-                <span className="text-gray-500 text-sm">flat rate</span>
+                <span className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>flat rate</span>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className={`mt-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 The starting fare before distance calculation
               </p>
             </div>
 
             {/* Minimum Fare */}
             <div>
-              <label className="block text-lg font-medium text-gray-900 mb-3">
+              <label className={`block text-lg font-medium mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Minimum Fare ({settings.currency})
               </label>
               <div className="flex items-center space-x-4">
@@ -119,25 +137,33 @@ const Settings = () => {
                   min="0"
                   value={settings.minFare}
                   onChange={(e) => updateSetting('minFare', e.target.value)}
-                  className="flex-1 px-4 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`flex-1 px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                  }`}
                   placeholder="10.00"
                 />
-                <span className="text-gray-500 text-sm">minimum</span>
+                <span className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>minimum</span>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className={`mt-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 The minimum fare regardless of distance
               </p>
             </div>
 
             {/* Currency */}
             <div>
-              <label className="block text-lg font-medium text-gray-900 mb-3">
+              <label className={`block text-lg font-medium mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Currency
               </label>
               <select
                 value={settings.currency}
                 onChange={(e) => updateSetting('currency', e.target.value)}
-                className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'bg-gray-900 border-gray-700 text-white' 
+                    : 'border-gray-300 bg-white text-gray-900'
+                }`}
               >
                 <option value="CAD">Canadian Dollar (CAD)</option>
                 <option value="USD">US Dollar (USD)</option>
@@ -147,19 +173,23 @@ const Settings = () => {
                 <option value="JPY">Japanese Yen (JPY)</option>
                 <option value="INR">Indian Rupee (INR)</option>
               </select>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className={`mt-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 The currency used for fare calculations
               </p>
             </div>
 
             {/* Formula Display */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-3">Fare Calculation Formula</h3>
+            <div className={`border rounded-lg p-6 transition-colors duration-200 ${
+              isDarkMode 
+                ? 'bg-blue-900/20 border-blue-700/30' 
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+              <h3 className={`text-lg font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>Fare Calculation Formula</h3>
               <div className="text-center">
-                <p className="text-2xl font-mono text-blue-800 mb-2">
+                <p className={`text-2xl font-mono mb-2 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
                   Fare = max(MinFare, BaseFare + (PerKmRate × Distance))
                 </p>
-                <p className="text-sm text-blue-700">
+                <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>
                   Using your current settings: max({settings.currency} {settings.minFare}, {settings.currency} {settings.baseFare} + ({settings.currency} {settings.perKmRate} × Distance))
                 </p>
               </div>
@@ -169,13 +199,17 @@ const Settings = () => {
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
               <button
                 onClick={resetToDefaults}
-                className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium"
+                className={`flex-1 px-6 py-3 border rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ${
+                  isDarkMode 
+                    ? 'border-gray-600 text-gray-300 bg-gray-800 hover:bg-gray-700' 
+                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                }`}
               >
                 Reset to Defaults
               </button>
               <Link
                 to="/"
-                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
               >
                 Save & Return to Calculator
               </Link>
@@ -184,7 +218,7 @@ const Settings = () => {
         </div>
 
         {/* Footer Info */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className={`mt-8 text-center text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           <p>Settings are automatically saved and will be used for all fare calculations</p>
         </div>
       </div>

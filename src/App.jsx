@@ -4,7 +4,6 @@ import { useTheme } from './ThemeContext.jsx'
 import emailjs from '@emailjs/browser'
 
 function App() {
-  console.log('App component is mounting...')
   
   const { isDarkMode, toggleTheme } = useTheme()
   const [pickupAddress, setPickupAddress] = useState('')
@@ -14,7 +13,7 @@ function App() {
   const [distance, setDistance] = useState(null)
   const [travelTime, setTravelTime] = useState(null)
   const [fare, setFare] = useState(null)
-  const [apiKey] = useState('AIzaSyB8eSEwobyB-7ZkgKBUKLl5Hvico0CFjso')
+  const [apiKey] = useState(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyB8eSEwobyB-7ZkgKBUKLl5Hvico0CFjso')
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
   
@@ -27,9 +26,9 @@ function App() {
   
   // EmailJS configuration
   const [emailConfig] = useState({
-    serviceId: 'service_nrynudw', // You'll need to replace this with your EmailJS service ID
-    templateId: 'template_lqiv82a', // You'll need to replace this with your EmailJS template ID
-    publicKey: 'a6vgoEqiDO14QO4OJ' // You'll need to replace this with your EmailJS public key
+    serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_nrynudw',
+    templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_lqiv82a',
+    publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'a6vgoEqiDO14QO4OJ'
   })
   
   // Settings state
@@ -88,6 +87,12 @@ function App() {
         script.async = true
         script.defer = true
         
+        // Add error handling for script loading
+        script.onerror = () => {
+          console.error('Failed to load Google Maps API')
+          alert('Failed to load Google Maps. Please check your internet connection and try again.')
+        }
+        
         window.initMap = () => {
           console.log('Google Maps with Routes API loaded successfully')
           setIsMapLoaded(true)
@@ -96,6 +101,7 @@ function App() {
         document.head.appendChild(script)
       } catch (error) {
         console.error('Error loading Google Maps:', error)
+        alert('Error loading Google Maps. Please refresh the page and try again.')
       }
     }
 
@@ -505,6 +511,26 @@ function App() {
     }
   }, [isMapLoaded])
 
+  // Cleanup function to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Clean up autocomplete instances
+      Object.values(autocompleteRefs.current).forEach(autocomplete => {
+        if (autocomplete && autocomplete.unbindAll) {
+          autocomplete.unbindAll()
+        }
+      })
+      
+      // Clear custom markers
+      clearCustomMarkers()
+      
+      // Clear directions renderer
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setMap(null)
+      }
+    }
+  }, [])
+
   // Initialize second dropoff autocomplete when the field becomes visible
   useEffect(() => {
     if (showSecondDropoff && isMapLoaded) {
@@ -633,7 +659,15 @@ function App() {
         pickup_address: pickupAddress,
         dropoff_address: dropoffAddress,
         second_dropoff_address: secondDropoffAddress || 'Not specified',
-        pickup_datetime: pickupDateTime,
+        pickup_date: pickupDateTime ? pickupDateTime.split('T')[0] : 'Not specified',
+        pickup_time: pickupDateTime ? (() => {
+          const time = pickupDateTime.split('T')[1] || '12:00'
+          const [hours, minutes] = time.split(':')
+          const hour24 = parseInt(hours)
+          const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+          const period = hour24 >= 12 ? 'PM' : 'AM'
+          return `${hour12}:${minutes} ${period}`
+        })() : 'Not specified',
         email_address: emailAddress,
         phone_number: phoneNumber,
         message: message || 'No special requests',
@@ -736,7 +770,6 @@ function App() {
     console.log('Results cleared successfully')
   }
 
-  console.log('App component is rendering...')
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}>
@@ -923,9 +956,13 @@ function App() {
                         value={(() => {
                           const currentTime = pickupDateTime.split('T')[1] || '12:00'
                           const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
-                          return currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24
+                          // Convert 24-hour to 12-hour format
+                          if (currentHour24 === 0) return 12
+                          if (currentHour24 > 12) return currentHour24 - 12
+                          return currentHour24
                         })()}
                         onChange={(e) => {
+                          const currentDate = pickupDateTime.split('T')[0] || new Date().toISOString().split('T')[0]
                           const currentTime = pickupDateTime.split('T')[1] || '12:00'
                           const minutes = currentTime.split(':')[1] || '00'
                           const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
@@ -933,7 +970,7 @@ function App() {
                           const newHour12 = parseInt(e.target.value)
                           const newHour24 = newHour12 === 12 ? (isPM ? 12 : 0) : (isPM ? newHour12 + 12 : newHour12)
                           const newHour24Str = newHour24.toString().padStart(2, '0')
-                          setPickupDateTime(`${pickupDateTime.split('T')[0]}T${newHour24Str}:${minutes}`)
+                          setPickupDateTime(`${currentDate}T${newHour24Str}:${minutes}`)
                         }}
                         className={`flex-1 px-3 py-2 border-0 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                           isDarkMode 
@@ -957,9 +994,10 @@ function App() {
                       <select
                         value={pickupDateTime.split('T')[1]?.split(':')[1] || '00'}
                         onChange={(e) => {
+                          const currentDate = pickupDateTime.split('T')[0] || new Date().toISOString().split('T')[0]
                           const currentTime = pickupDateTime.split('T')[1] || '12:00'
                           const hours = currentTime.split(':')[0] || '12'
-                          setPickupDateTime(`${pickupDateTime.split('T')[0]}T${hours}:${e.target.value}`)
+                          setPickupDateTime(`${currentDate}T${hours}:${e.target.value}`)
                         }}
                         className={`flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                           isDarkMode 
@@ -979,7 +1017,8 @@ function App() {
                         {['AM', 'PM'].map((period) => {
                           const currentTime = pickupDateTime.split('T')[1] || '12:00'
                           const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
-                          const isPM = currentHour24 >= 12
+                          // Default to AM if no time is set, otherwise use proper 24-hour logic
+                          const isPM = pickupDateTime ? (currentHour24 >= 12) : false
                           const isCurrentPeriod = (period === 'PM') === isPM
                           
                           return (
@@ -987,6 +1026,7 @@ function App() {
                               key={period}
                               type="button"
                               onClick={() => {
+                                const currentDate = pickupDateTime.split('T')[0] || new Date().toISOString().split('T')[0]
                                 const currentTime = pickupDateTime.split('T')[1] || '12:00'
                                 const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
                                 const minutes = currentTime.split(':')[1] || '00'
@@ -995,7 +1035,9 @@ function App() {
                                   ? (currentHour12 === 12 ? 12 : currentHour12 + 12)
                                   : (currentHour12 === 12 ? 0 : currentHour12)
                                 const newHour24Str = newHour24.toString().padStart(2, '0')
-                                setPickupDateTime(`${pickupDateTime.split('T')[0]}T${newHour24Str}:${minutes}`)
+                                const newDateTime = `${currentDate}T${newHour24Str}:${minutes}`
+                                console.log('AM/PM clicked:', { period, currentDateTime: pickupDateTime, newDateTime })
+                                setPickupDateTime(newDateTime)
                               }}
                               className={`px-3 py-2 text-sm font-medium border-0 transition-colors duration-200 ${
                                 isCurrentPeriod 
