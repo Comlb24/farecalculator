@@ -757,17 +757,17 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Inputs Only */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             
             {/* Address Inputs */}
-            <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-6 border transition-colors duration-200`}>
-              <h2 className={`text-xl font-semibold mb-4 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Route Details</h2>
-              <div className="space-y-4">
+            <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-5 border transition-colors duration-200`}>
+              <h2 className={`text-xl font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Route Details</h2>
+              <div className="space-y-3">
                 <div>
-                  <label htmlFor="pickup-address" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="pickup-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Pickup Address
                   </label>
                   <div className="relative">
@@ -791,7 +791,7 @@ function App() {
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="dropoff-address" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="dropoff-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Drop-off Address
                   </label>
                   <div className="relative">
@@ -833,7 +833,7 @@ function App() {
                 {/* Second Dropoff Address Field */}
                 {showSecondDropoff && (
                   <div>
-                    <label htmlFor="second-dropoff-address" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                    <label htmlFor="second-dropoff-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                       Second Drop-off Address
                     </label>
                     <div className="relative">
@@ -883,7 +883,7 @@ function App() {
 
                 {/* Additional Customer Information */}
                 <div>
-                  <label htmlFor="customer-name" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="customer-name" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Name
                   </label>
                   <input
@@ -901,7 +901,7 @@ function App() {
                 </div>
 
                 <div>
-                  <label htmlFor="pickup-date" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="pickup-date" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Date
                   </label>
                   <input
@@ -918,7 +918,7 @@ function App() {
                 </div>
 
                 <div>
-                  <label htmlFor="pickup-time" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="pickup-time" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Pickup Time
                   </label>
                   <input
@@ -935,7 +935,7 @@ function App() {
                 </div>
 
                 <div>
-                  <label htmlFor="email-address" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="email-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Email Address
                   </label>
                   <input
@@ -953,7 +953,7 @@ function App() {
                 </div>
 
       <div>
-                  <label htmlFor="phone-number" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="phone-number" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Phone Number
                   </label>
                   <input
@@ -971,7 +971,7 @@ function App() {
                 </div>
 
                 <div>
-                  <label htmlFor="message" className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <label htmlFor="message" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Message / Special Requests
                   </label>
                   <textarea
@@ -1016,7 +1016,7 @@ function App() {
           </div>
 
           {/* Right Column - Map and Results */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Map */}
             <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-0 overflow-hidden border transition-colors duration-200`}>
               <div className="h-96 w-full" ref={mapRef}>
@@ -1033,8 +1033,8 @@ function App() {
 
             {/* Results Card */}
             {(distance || fare) && (
-              <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-6 border transition-colors duration-200`}>
-                <h2 className={`text-xl font-semibold mb-4 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Fare Estimate</h2>
+              <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-100'} rounded-xl shadow-lg p-5 border transition-colors duration-200`}>
+                <h2 className={`text-xl font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Fare Estimate</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Pickup</p>
