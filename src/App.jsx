@@ -175,6 +175,9 @@ function App() {
               setPickupAddress(displayName)
               console.log('Pickup place selected:', displayName)
               
+              // Add pickup marker immediately
+              addPickupMarker(displayName)
+              
               // Auto-calculate route if dropoff addresses are already filled
               setTimeout(() => {
                 if (dropoffAddress) {
@@ -385,7 +388,7 @@ function App() {
         directionsRendererRef.current = directionsRenderer
 
         // Add custom markers for our specific locations
-        await addCustomMarkers(currentSecondDropoff)
+        await addCustomMarkers(pickupAddress, dropoffAddress, currentSecondDropoff)
         
         console.log('Multi-dropoff route calculated successfully:', { distanceKm, timeMinutes, calculatedFare })
       }
@@ -400,84 +403,149 @@ function App() {
     }
   }
 
-  const addCustomMarkers = async (providedSecondDropoff = null) => {
+  // Helper function to create a marker
+  const createMarker = (position, title, iconUrl, labelText, color) => {
+    return new window.google.maps.Marker({
+      position: position,
+      map: mapInstanceRef.current,
+      title: title,
+      icon: {
+        url: iconUrl,
+        scaledSize: new window.google.maps.Size(32, 32)
+      },
+      label: {
+        text: labelText,
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: '12px'
+      }
+    })
+  }
+
+  // Helper function to geocode an address
+  const geocodeAddress = (address, markerInfo) => {
+    return new Promise((resolve, reject) => {
+      console.log(`Geocoding address: ${address}`)
+      const geocoder = new window.google.maps.Geocoder()
+      geocoder.geocode({ address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          console.log(`Successfully geocoded ${address}:`, results[0].geometry.location.toString())
+          const marker = createMarker(
+            results[0].geometry.location,
+            markerInfo.title,
+            markerInfo.iconUrl,
+            markerInfo.labelText,
+            markerInfo.color
+          )
+          resolve(marker)
+        } else {
+          console.error(`Geocoding failed for ${address}:`, status)
+          reject(new Error(`Geocoding failed for ${address}: ${status}`))
+        }
+      })
+    })
+  }
+
+  // Function to add a single pickup marker immediately
+  const addPickupMarker = async (address) => {
+    if (!window.google || !window.google.maps || !mapInstanceRef.current || !address) return
+
+    try {
+      // Remove existing pickup marker if any
+      if (customMarkersRef.current) {
+        const pickupMarker = customMarkersRef.current.find(marker => 
+          marker.getTitle() === 'Pickup'
+        )
+        if (pickupMarker) {
+          pickupMarker.setMap(null)
+          customMarkersRef.current = customMarkersRef.current.filter(marker => 
+            marker.getTitle() !== 'Pickup'
+          )
+        }
+      }
+
+      // Add new pickup marker
+      const marker = await geocodeAddress(address, {
+        title: 'Pickup',
+        iconUrl: 'https://maps.google.com/mapfiles/marker.png',
+        labelText: 'P',
+        color: 'white'
+      })
+
+      // Add to markers array
+      if (!customMarkersRef.current) {
+        customMarkersRef.current = []
+      }
+      customMarkersRef.current.push(marker)
+
+      console.log('Pickup marker added immediately for:', address)
+    } catch (error) {
+      console.error('Error adding pickup marker:', error)
+    }
+  }
+
+  const addCustomMarkers = async (providedPickup = null, providedDropoff = null, providedSecondDropoff = null) => {
     if (!window.google || !window.google.maps || !mapInstanceRef.current) return
 
-    // Clear existing custom markers
-    clearCustomMarkers()
+    // Use provided addresses or fall back to state
+    const currentPickup = providedPickup || pickupAddress
+    const currentDropoff = providedDropoff || dropoffAddress
+    const currentSecondDropoff = providedSecondDropoff || secondDropoffAddress
+
+    // Store existing pickup marker before clearing
+    let existingPickupMarker = null
+    if (customMarkersRef.current) {
+      existingPickupMarker = customMarkersRef.current.find(marker => 
+        marker.getTitle() === 'Pickup'
+      )
+    }
+
+    // Clear only non-pickup markers
+    if (customMarkersRef.current) {
+      customMarkersRef.current.forEach(marker => {
+        if (marker.getTitle() !== 'Pickup') {
+          marker.setMap(null)
+        }
+      })
+      customMarkersRef.current = customMarkersRef.current.filter(marker => 
+        marker.getTitle() === 'Pickup'
+      )
+    }
 
     const markers = []
     const geocoder = new window.google.maps.Geocoder()
 
-    // Use provided address or fall back to state
-    const currentSecondDropoff = providedSecondDropoff || secondDropoffAddress
-
-    console.log('Adding custom markers for addresses:', { pickupAddress, dropoffAddress, secondDropoffAddress: currentSecondDropoff })
-
-    // Helper function to create a marker
-    const createMarker = (position, title, iconUrl, labelText, color) => {
-      return new window.google.maps.Marker({
-        position: position,
-        map: mapInstanceRef.current,
-        title: title,
-        icon: {
-          url: iconUrl,
-          scaledSize: new window.google.maps.Size(32, 32)
-        },
-        label: {
-          text: labelText,
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: '12px'
-        }
-      })
-    }
-
-    // Helper function to geocode an address
-    const geocodeAddress = (address, markerInfo) => {
-      return new Promise((resolve, reject) => {
-        console.log(`Geocoding address: ${address}`)
-        geocoder.geocode({ address }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            console.log(`Successfully geocoded ${address}:`, results[0].geometry.location.toString())
-            const marker = createMarker(
-              results[0].geometry.location,
-              markerInfo.title,
-              markerInfo.iconUrl,
-              markerInfo.labelText,
-              markerInfo.color
-            )
-            resolve(marker)
-          } else {
-            console.error(`Geocoding failed for ${address}:`, status)
-            reject(new Error(`Geocoding failed for ${address}: ${status}`))
-          }
-        })
-      })
-    }
+    console.log('Adding custom markers for addresses:', { currentPickup, currentDropoff, secondDropoffAddress: currentSecondDropoff })
 
     try {
       // Geocode all addresses in parallel
       const geocodePromises = []
 
-      // Add pickup marker
-      if (pickupAddress) {
-        geocodePromises.push(
-          geocodeAddress(pickupAddress, {
-            title: 'Pickup',
-            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
-            labelText: 'P',
-            color: 'white'
-          })
-        )
+      // Add pickup marker (reuse existing or create new)
+      if (currentPickup) {
+        if (existingPickupMarker) {
+          // Reuse existing pickup marker
+          markers.push(existingPickupMarker)
+          console.log('Reusing existing pickup marker')
+        } else {
+          // Create new pickup marker
+          geocodePromises.push(
+            geocodeAddress(currentPickup, {
+              title: 'Pickup',
+              iconUrl: 'https://maps.google.com/mapfiles/marker.png',
+              labelText: 'P',
+              color: 'white'
+            })
+          )
+        }
       }
 
       // Add first dropoff marker
-      if (dropoffAddress) {
+      if (currentDropoff) {
         geocodePromises.push(
-          geocodeAddress(dropoffAddress, {
+          geocodeAddress(currentDropoff, {
             title: 'First Drop-off',
-            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+            iconUrl: 'https://maps.google.com/mapfiles/marker.png',
             labelText: '1',
             color: 'white'
           })
@@ -489,7 +557,7 @@ function App() {
         geocodePromises.push(
           geocodeAddress(currentSecondDropoff, {
             title: 'Second Drop-off',
-            iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            iconUrl: 'https://maps.google.com/mapfiles/marker.png',
             labelText: '2',
             color: 'white'
           })
@@ -508,6 +576,7 @@ function App() {
           console.error(`Failed to add marker ${index + 1}:`, result.reason)
         }
       })
+
 
       customMarkersRef.current = markers
       console.log(`Successfully created ${markers.length} custom markers`)
@@ -624,7 +693,18 @@ function App() {
         if (directionsRendererRef.current) {
           directionsRendererRef.current.setMap(null)
         }
-        clearCustomMarkers()
+        
+        // Clear only dropoff markers, preserve pickup marker
+        if (customMarkersRef.current) {
+          customMarkersRef.current.forEach(marker => {
+            if (marker.getTitle() !== 'Pickup') {
+              marker.setMap(null)
+            }
+          })
+          customMarkersRef.current = customMarkersRef.current.filter(marker => 
+            marker.getTitle() === 'Pickup'
+          )
+        }
         
         const directionsRenderer = new window.google.maps.DirectionsRenderer({
           suppressMarkers: true, // Hide default markers
@@ -638,7 +718,7 @@ function App() {
         directionsRendererRef.current = directionsRenderer
 
         // Add custom markers for single route
-        await addCustomMarkers()
+        await addCustomMarkers(pickup, dropoff)
         
         console.log('Route calculated successfully:', { distanceKm, timeMinutes, calculatedFare })
       }
