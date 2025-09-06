@@ -19,7 +19,29 @@ function App() {
   
   // Customer information state
   const [customerName, setCustomerName] = useState('')
-  const [pickupDateTime, setPickupDateTime] = useState('')
+  const [pickupDateTime, setPickupDateTime] = useState(() => {
+    // Set default to current date and time in Moncton timezone
+    const now = new Date()
+    const monctonDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Moncton',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(now)
+    
+    const monctonTime = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Moncton',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(now)
+    
+    const year = monctonDate.find(part => part.type === 'year').value
+    const month = monctonDate.find(part => part.type === 'month').value
+    const day = monctonDate.find(part => part.type === 'day').value
+    
+    return `${year}-${month}-${day}T${monctonTime}`
+  })
   const [emailAddress, setEmailAddress] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [message, setMessage] = useState('')
@@ -28,7 +50,8 @@ function App() {
   const [validationErrors, setValidationErrors] = useState({
     customerName: false,
     emailAddress: false,
-    phoneNumber: false
+    phoneNumber: false,
+    pickupDateTime: false
   })
   
   // EmailJS configuration
@@ -717,7 +740,8 @@ function App() {
     const errors = {
       customerName: !customerName.trim(),
       emailAddress: !emailAddress.trim(),
-      phoneNumber: !phoneNumber.trim()
+      phoneNumber: !phoneNumber.trim(),
+      pickupDateTime: !pickupDateTime || !validatePickupDateTime(pickupDateTime)
     }
     
     setValidationErrors(errors)
@@ -745,6 +769,61 @@ function App() {
     
     // Then send the booking email
     await sendBookingEmail()
+  }
+
+  // Get current date in Moncton timezone (Atlantic Time)
+  const getCurrentDateInMoncton = () => {
+    const now = new Date()
+    // Moncton is in Atlantic Time (UTC-4 in winter, UTC-3 in summer)
+    // Using Intl.DateTimeFormat to get the correct timezone
+    const monctonDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Moncton',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(now)
+    
+    // Format as YYYY-MM-DD for HTML date input
+    const year = monctonDate.find(part => part.type === 'year').value
+    const month = monctonDate.find(part => part.type === 'month').value
+    const day = monctonDate.find(part => part.type === 'day').value
+    
+    return `${year}-${month}-${day}`
+  }
+
+  // Validate pickup date and time
+  const validatePickupDateTime = (dateTime) => {
+    if (!dateTime) return false
+    
+    const selectedDate = dateTime.split('T')[0]
+    const currentDate = getCurrentDateInMoncton()
+    
+    // Check if selected date is before today
+    if (selectedDate < currentDate) {
+      return false
+    }
+    
+    // If it's today, check if the time is in the future
+    if (selectedDate === currentDate) {
+      const now = new Date()
+      const monctonTime = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Moncton',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(now)
+      
+      const selectedTime = dateTime.split('T')[1] || '12:00'
+      const [selectedHour, selectedMinute] = selectedTime.split(':').map(Number)
+      const [currentHour, currentMinute] = monctonTime.split(':').map(Number)
+      
+      const selectedMinutes = selectedHour * 60 + selectedMinute
+      const currentMinutes = currentHour * 60 + currentMinute
+      
+      return selectedMinutes > currentMinutes
+    }
+    
+    return true
   }
 
   // Phone number formatting function
@@ -797,7 +876,8 @@ function App() {
     setValidationErrors({
       customerName: false,
       emailAddress: false,
-      phoneNumber: false
+      phoneNumber: false,
+      pickupDateTime: false
     })
     
     // Clear autocomplete references
@@ -975,21 +1055,25 @@ function App() {
                 {/* Additional Customer Information */}
                 <div>
                   <label className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Date & Time
+                    Date & Time {validationErrors.pickupDateTime && <span className="text-red-500">*</span>}
                   </label>
                   <div className="flex gap-2">
                     {/* Date Input */}
                     <input
                       type="date"
                       value={pickupDateTime.split('T')[0] || ''}
+                      min={getCurrentDateInMoncton()}
                       onChange={(e) => {
                         const time = pickupDateTime.split('T')[1] || '12:00'
                         setPickupDateTime(`${e.target.value}T${time}`)
+                        clearValidationError('pickupDateTime')
                       }}
                       className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gray-900 border-gray-700 text-white' 
-                          : 'border-gray-300 bg-white text-gray-900'
+                        validationErrors.pickupDateTime
+                          ? 'border-red-500 ring-2 ring-red-200'
+                          : isDarkMode 
+                            ? 'bg-gray-900 border-gray-700 text-white' 
+                            : 'border-gray-300 bg-white text-gray-900'
                       }`}
                     />
                     
@@ -1019,6 +1103,7 @@ function App() {
                           const newHour24 = newHour12 === 12 ? (isPM ? 12 : 0) : (isPM ? newHour12 + 12 : newHour12)
                           const newHour24Str = newHour24.toString().padStart(2, '0')
                           setPickupDateTime(`${currentDate}T${newHour24Str}:${minutes}`)
+                          clearValidationError('pickupDateTime')
                         }}
                         className={`flex-1 px-3 py-2 border-0 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                           isDarkMode 
@@ -1046,6 +1131,7 @@ function App() {
                           const currentTime = pickupDateTime.split('T')[1] || '12:00'
                           const hours = currentTime.split(':')[0] || '12'
                           setPickupDateTime(`${currentDate}T${hours}:${e.target.value}`)
+                          clearValidationError('pickupDateTime')
                         }}
                         className={`flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
                           isDarkMode 
@@ -1086,6 +1172,7 @@ function App() {
                                 const newDateTime = `${currentDate}T${newHour24Str}:${minutes}`
                                 console.log('AM/PM clicked:', { period, currentDateTime: pickupDateTime, newDateTime })
                                 setPickupDateTime(newDateTime)
+                                clearValidationError('pickupDateTime')
                               }}
                               className={`px-3 py-2 text-sm font-medium border-0 transition-colors duration-200 ${
                                 isCurrentPeriod 
@@ -1100,6 +1187,13 @@ function App() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Date validation error message */}
+                  {validationErrors.pickupDateTime && (
+                    <p className="text-red-500 text-sm mt-1">
+                      Please select a date and time in the future (Moncton timezone)
+                    </p>
+                  )}
                 </div>
 
                 <div>
