@@ -145,6 +145,12 @@ function App() {
     try {
       console.log('Initializing map with Routes API...')
       
+      // Define bounding box for Atlantic provinces (NB, PEI, NS)
+      const atlanticBounds = new window.google.maps.LatLngBounds(
+        new window.google.maps.LatLng(43.0, -67.0), // Southwest corner
+        new window.google.maps.LatLng(48.0, -60.0)  // Northeast corner
+      )
+      
       // Initialize map
       const map = new window.google.maps.Map(mapRef.current, {
         center: { lat: 46.0878, lng: -64.7782 }, // Moncton, New Brunswick coordinates
@@ -165,7 +171,10 @@ function App() {
         const pickupInput = document.getElementById('pickup-address')
         if (pickupInput) {
           const pickupAutocomplete = new window.google.maps.places.Autocomplete(pickupInput, {
-            fields: ['formatted_address', 'geometry', 'name', 'place_id']
+            fields: ['formatted_address', 'geometry', 'name', 'place_id'],
+            bounds: atlanticBounds,
+            strictBounds: true, // Restrict results to within the bounds
+            componentRestrictions: { country: 'ca' } // Restrict to Canada only
           })
 
           pickupAutocomplete.addListener('place_changed', () => {
@@ -203,7 +212,10 @@ function App() {
         const dropoffInput = document.getElementById('dropoff-address')
         if (dropoffInput) {
           const dropoffAutocomplete = new window.google.maps.places.Autocomplete(dropoffInput, {
-            fields: ['formatted_address', 'geometry', 'name', 'place_id']
+            fields: ['formatted_address', 'geometry', 'name', 'place_id'],
+            bounds: atlanticBounds,
+            strictBounds: true, // Restrict results to within the bounds
+            componentRestrictions: { country: 'ca' } // Restrict to Canada only
           })
 
           dropoffAutocomplete.addListener('place_changed', () => {
@@ -259,10 +271,19 @@ function App() {
     if (!window.google || !window.google.maps) return
 
     try {
+      // Define bounding box for Atlantic provinces (NB, PEI, NS)
+      const atlanticBounds = new window.google.maps.LatLngBounds(
+        new window.google.maps.LatLng(43.0, -67.0), // Southwest corner
+        new window.google.maps.LatLng(48.0, -60.0)  // Northeast corner
+      )
+      
       const secondDropoffInput = document.getElementById('second-dropoff-address')
       if (secondDropoffInput && !autocompleteRefs.current.secondDropoff) {
         const secondDropoffAutocomplete = new window.google.maps.places.Autocomplete(secondDropoffInput, {
-          fields: ['formatted_address', 'geometry', 'name', 'place_id']
+          fields: ['formatted_address', 'geometry', 'name', 'place_id'],
+          bounds: atlanticBounds,
+          strictBounds: true, // Restrict results to within the bounds
+          componentRestrictions: { country: 'ca' } // Restrict to Canada only
         })
 
         secondDropoffAutocomplete.addListener('place_changed', () => {
