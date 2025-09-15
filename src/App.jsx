@@ -12,6 +12,7 @@ const ResultsCard = memo(({
   dropoffAddress, 
   secondDropoffAddress, 
   numberOfPassengers,
+  isReturnTrip,
   settings, 
   isDarkMode, 
   clearResults 
@@ -51,9 +52,16 @@ const ResultsCard = memo(({
           <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{numberOfPassengers}</p>
         </div>
         <div>
+          <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Trip Type</p>
+          <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            {isReturnTrip ? 'Return Trip' : 'One Way'}
+          </p>
+        </div>
+        <div>
           <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Estimated Fare</p>
           <p className="text-2xl font-bold text-blue-600">
             {settings.currency} {calculatedFare?.toFixed(2)}
+            {isReturnTrip && <span className="text-sm font-normal text-gray-500 ml-1">(Return)</span>}
           </p>
         </div>
       </div>
@@ -97,21 +105,24 @@ function App() {
   // Customer information state
   const [customerName, setCustomerName] = useState('')
   const [pickupDateTime, setPickupDateTime] = useState(() => {
-    // Set default to current date and time in Moncton timezone
+    // Set default to current date and time + 30 minutes in Moncton timezone
     const now = new Date()
+    // Add 30 minutes to current time
+    const futureTime = new Date(now.getTime() + 30 * 60 * 1000)
+    
     const monctonDate = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Moncton',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
-    }).formatToParts(now)
+    }).formatToParts(futureTime)
     
     const monctonTime = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Moncton',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }).format(now)
+    }).format(futureTime)
     
     const year = monctonDate.find(part => part.type === 'year').value
     const month = monctonDate.find(part => part.type === 'month').value
@@ -122,6 +133,33 @@ function App() {
   const [emailAddress, setEmailAddress] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [numberOfPassengers, setNumberOfPassengers] = useState(1)
+  const [isReturnTrip, setIsReturnTrip] = useState(false)
+  const [returnDateTime, setReturnDateTime] = useState(() => {
+    // Set default to current date and time + 2 hours in Moncton timezone
+    const now = new Date()
+    // Add 2 hours to current time for return trip
+    const futureTime = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+    
+    const monctonDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Moncton',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(futureTime)
+    
+    const monctonTime = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Moncton',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(futureTime)
+    
+    const year = monctonDate.find(part => part.type === 'year').value
+    const month = monctonDate.find(part => part.type === 'month').value
+    const day = monctonDate.find(part => part.type === 'day').value
+    
+    return `${year}-${month}-${day}T${monctonTime}`
+  })
   const [message, setMessage] = useState('')
   
   // Validation state
@@ -130,6 +168,7 @@ function App() {
     emailAddress: false,
     phoneNumber: false,
     pickupDateTime: false,
+    returnDateTime: false,
     numberOfPassengers: false
   })
   
@@ -151,11 +190,13 @@ function App() {
   // Memoized fare calculation
   const calculatedFare = useMemo(() => {
     if (!distance) return null
-    return Math.max(
+    const baseFare = Math.max(
       settings.minFare,
       settings.baseFare + (settings.perKmRate * distance)
     )
-  }, [distance, settings.minFare, settings.baseFare, settings.perKmRate])
+    // Double the fare for return trips
+    return isReturnTrip ? baseFare * 2 : baseFare
+  }, [distance, settings.minFare, settings.baseFare, settings.perKmRate, isReturnTrip])
   
   // Refs for Google Maps
   const mapRef = useRef(null)
@@ -1034,9 +1075,19 @@ function App() {
           const period = hour24 >= 12 ? 'PM' : 'AM'
           return `${hour12}:${minutes} ${period}`
         })() : 'Not specified',
+        return_date: isReturnTrip && returnDateTime ? returnDateTime.split('T')[0] : 'Not specified',
+        return_time: isReturnTrip && returnDateTime ? (() => {
+          const time = returnDateTime.split('T')[1] || '12:00'
+          const [hours, minutes] = time.split(':')
+          const hour24 = parseInt(hours)
+          const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+          const period = hour24 >= 12 ? 'PM' : 'AM'
+          return `${hour12}:${minutes} ${period}`
+        })() : 'Not specified',
         email_address: emailAddress,
         phone_number: phoneNumber,
         number_of_passengers: numberOfPassengers,
+        return_trip: isReturnTrip ? 'Yes' : 'No',
         message: message || 'No special requests',
         distance: distance ? `${distance.toFixed(2)} km` : 'Not calculated',
         travel_time: travelTime ? `${travelTime} minutes` : 'Not calculated',
@@ -1167,6 +1218,7 @@ function App() {
       emailAddress: !emailAddress.trim() || !isValidEmail(emailAddress),
       phoneNumber: !phoneNumber.trim() || !isValidPhoneNumber(phoneNumber),
       pickupDateTime: !pickupDateTime || !validatePickupDateTime(pickupDateTime),
+      returnDateTime: isReturnTrip && (!returnDateTime || !validatePickupDateTime(returnDateTime)),
       numberOfPassengers: !numberOfPassengers || numberOfPassengers < 1 || numberOfPassengers > 40
     }
     
@@ -1189,13 +1241,15 @@ function App() {
       }
     } else if (errors.pickupDateTime) {
       showError('Please select a valid pickup date and time in the future')
+    } else if (errors.returnDateTime) {
+      showError('Please select a valid return date and time in the future')
     } else if (errors.numberOfPassengers) {
       showError('Please enter a valid number of passengers (1-40)')
     }
     
     // Return true if all fields are valid
     return !Object.values(errors).some(error => error)
-  }, [customerName, emailAddress, phoneNumber, pickupDateTime, numberOfPassengers, isValidEmail, isValidPhoneNumber, validatePickupDateTime, showError])
+  }, [customerName, emailAddress, phoneNumber, pickupDateTime, returnDateTime, isReturnTrip, numberOfPassengers, isValidEmail, isValidPhoneNumber, validatePickupDateTime, showError])
 
   // Clear validation error for a specific field
   const clearValidationError = useCallback((fieldName) => {
@@ -1291,6 +1345,32 @@ function App() {
     setEmailAddress('')
     setPhoneNumber('')
     setNumberOfPassengers(1)
+    setIsReturnTrip(false)
+    setReturnDateTime(() => {
+      // Reset to current date and time + 2 hours in Moncton timezone
+      const now = new Date()
+      const futureTime = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+      
+      const monctonDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Moncton',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(futureTime)
+      
+      const monctonTime = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Moncton',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(futureTime)
+      
+      const year = monctonDate.find(part => part.type === 'year').value
+      const month = monctonDate.find(part => part.type === 'month').value
+      const day = monctonDate.find(part => part.type === 'day').value
+      
+      return `${year}-${month}-${day}T${monctonTime}`
+    })
     setMessage('')
     
     // Clear validation errors
@@ -1299,6 +1379,7 @@ function App() {
       emailAddress: false,
       phoneNumber: false,
       pickupDateTime: false,
+      returnDateTime: false,
       numberOfPassengers: false
     })
     
@@ -1849,26 +1930,189 @@ function App() {
                   <label htmlFor="number-of-passengers" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Number of Passengers {validationErrors.numberOfPassengers && <span className="text-red-500">*</span>}
                   </label>
-                  <input
-                    id="number-of-passengers"
-                    type="number"
-                    min="1"
-                    max="40"
-                    placeholder="1"
-                    value={numberOfPassengers}
-                    onChange={(e) => {
-                      setNumberOfPassengers(parseInt(e.target.value) || 1)
-                      clearValidationError('numberOfPassengers')
-                    }}
-                    className={`w-1/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      validationErrors.numberOfPassengers
-                        ? 'border-red-500 ring-2 ring-red-200'
-                        : isDarkMode 
-                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
-                    }`}
-                  />
+                  <div className="flex items-center gap-4">
+                    <input
+                      id="number-of-passengers"
+                      type="number"
+                      min="1"
+                      max="40"
+                      placeholder="1"
+                      value={numberOfPassengers}
+                      onChange={(e) => {
+                        setNumberOfPassengers(parseInt(e.target.value) || 1)
+                        clearValidationError('numberOfPassengers')
+                      }}
+                      className={`w-1/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                        validationErrors.numberOfPassengers
+                          ? 'border-red-500 ring-2 ring-red-200'
+                          : isDarkMode 
+                            ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                      }`}
+                    />
+                    <div className="flex items-center">
+                      <input
+                        id="return-trip"
+                        type="checkbox"
+                        checked={isReturnTrip}
+                        onChange={(e) => setIsReturnTrip(e.target.checked)}
+                        className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-colors duration-200 ${
+                          isDarkMode 
+                            ? 'bg-gray-700 border-gray-600 text-blue-500' 
+                            : 'bg-white border-gray-300'
+                        }`}
+                      />
+                      <label htmlFor="return-trip" className={`ml-2 text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                        Return Trip
+                      </label>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Return Date & Time Field - Only show when return trip is selected */}
+                {isReturnTrip && (
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Return Date & Time {validationErrors.returnDateTime && <span className="text-red-500">*</span>}
+                    </label>
+                    <div className="flex gap-2">
+                      {/* Return Date Input */}
+                      <input
+                        type="date"
+                        value={returnDateTime.split('T')[0] || ''}
+                        min={getCurrentDateInMoncton()}
+                        onChange={(e) => {
+                          const time = returnDateTime.split('T')[1] || '12:00'
+                          setReturnDateTime(`${e.target.value}T${time}`)
+                          clearValidationError('returnDateTime')
+                        }}
+                        className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                          validationErrors.returnDateTime
+                            ? 'border-red-500 ring-2 ring-red-200'
+                            : isDarkMode 
+                              ? 'bg-gray-900 border-gray-700 text-white' 
+                              : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                      />
+                      
+                      {/* Return Time Picker - 12 Hour Format */}
+                      <div className={`flex-1 flex border rounded-lg transition-colors duration-200 ${
+                        isDarkMode 
+                          ? 'bg-gray-900 border-gray-700' 
+                          : 'border-gray-300 bg-white'
+                      }`}>
+                        {/* Hours Dropdown */}
+                        <select
+                          value={(() => {
+                            const currentTime = returnDateTime.split('T')[1] || '12:00'
+                            const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                            // Convert 24-hour to 12-hour format
+                            if (currentHour24 === 0) return 12
+                            if (currentHour24 > 12) return currentHour24 - 12
+                            return currentHour24
+                          })()}
+                          onChange={(e) => {
+                            const currentDate = returnDateTime.split('T')[0] || new Date().toISOString().split('T')[0]
+                            const currentTime = returnDateTime.split('T')[1] || '12:00'
+                            const minutes = currentTime.split(':')[1] || '00'
+                            const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                            const isPM = currentHour24 >= 12
+                            const newHour12 = parseInt(e.target.value)
+                            const newHour24 = newHour12 === 12 ? (isPM ? 12 : 0) : (isPM ? newHour12 + 12 : newHour12)
+                            const newHour24Str = newHour24.toString().padStart(2, '0')
+                            setReturnDateTime(`${currentDate}T${newHour24Str}:${minutes}`)
+                            clearValidationError('returnDateTime')
+                          }}
+                          className={`flex-1 px-3 py-2 border-0 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                            isDarkMode 
+                              ? 'bg-gray-900 text-white' 
+                              : 'bg-white text-gray-900'
+                          }`}
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {(i + 1).toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* Separator */}
+                        <div className={`flex items-center px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          :
+                        </div>
+                        
+                        {/* Minutes Dropdown */}
+                        <select
+                          value={returnDateTime.split('T')[1]?.split(':')[1] || '00'}
+                          onChange={(e) => {
+                            const currentDate = returnDateTime.split('T')[0] || new Date().toISOString().split('T')[0]
+                            const currentTime = returnDateTime.split('T')[1] || '12:00'
+                            const hours = currentTime.split(':')[0] || '12'
+                            setReturnDateTime(`${currentDate}T${hours}:${e.target.value}`)
+                            clearValidationError('returnDateTime')
+                          }}
+                          className={`flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                            isDarkMode 
+                              ? 'bg-gray-900 text-white' 
+                              : 'bg-white text-gray-900'
+                          }`}
+                        >
+                          {Array.from({ length: 60 }, (_, i) => (
+                            <option key={i} value={i.toString().padStart(2, '0')}>
+                              {i.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* AM/PM Toggle */}
+                        <div className="flex">
+                          {['AM', 'PM'].map((period) => {
+                            const currentTime = returnDateTime.split('T')[1] || '12:00'
+                            const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                            // Default to AM if no time is set, otherwise use proper 24-hour logic
+                            const isPM = returnDateTime ? (currentHour24 >= 12) : false
+                            const isCurrentPeriod = (period === 'PM') === isPM
+                            
+                            return (
+                              <button
+                                key={period}
+                                type="button"
+                                onClick={() => {
+                                  const currentDate = returnDateTime.split('T')[0] || new Date().toISOString().split('T')[0]
+                                  const currentTime = returnDateTime.split('T')[1] || '12:00'
+                                  const currentHour24 = parseInt(currentTime.split(':')[0]) || 12
+                                  const minutes = currentTime.split(':')[1] || '00'
+                                  const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24
+                                  const newHour24 = period === 'PM' 
+                                    ? (currentHour12 === 12 ? 12 : currentHour12 + 12)
+                                    : (currentHour12 === 12 ? 0 : currentHour12)
+                                  const newHour24Str = newHour24.toString().padStart(2, '0')
+                                  const newDateTime = `${currentDate}T${newHour24Str}:${minutes}`
+                                  setReturnDateTime(newDateTime)
+                                  clearValidationError('returnDateTime')
+                                }}
+                                className={`px-3 py-2 text-sm font-medium border-0 transition-colors duration-200 ${
+                                  isCurrentPeriod 
+                                    ? `${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'}`
+                                    : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`
+                                } ${period === 'AM' ? 'rounded-l-lg' : 'rounded-r-lg'}`}
+                              >
+                                {period}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Return date validation error message */}
+                    {validationErrors.returnDateTime && (
+                      <p className="text-red-500 text-sm mt-1">
+                        Please select a valid return date and time in the future (Moncton timezone)
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label htmlFor="message" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -1972,6 +2216,7 @@ function App() {
               dropoffAddress={dropoffAddress}
               secondDropoffAddress={secondDropoffAddress}
               numberOfPassengers={numberOfPassengers}
+              isReturnTrip={isReturnTrip}
               settings={settings}
               isDarkMode={isDarkMode}
               clearResults={clearResults}
