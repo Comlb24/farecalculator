@@ -29,6 +29,7 @@ Customer Information:
 - Name: {{customer_name}}
 - Email: {{email_address}}
 - Phone: {{phone_number}}
+- Number of Passengers: {{number_of_passengers}}
 - Message: {{message}}
 
 Booking Details:
@@ -37,6 +38,9 @@ Booking Details:
 - Second Drop-off Address: {{second_dropoff_address}}
 - Pickup Date: {{pickup_date}}
 - Pickup Time: {{pickup_time}}
+- Return Trip: {{return_trip}}
+- Return Date: {{return_date}}
+- Return Time: {{return_time}}
 
 Route Information:
 - Distance: {{distance}}

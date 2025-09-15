@@ -244,6 +244,18 @@ function App() {
     setBookingPopup(null)
   }, [])
 
+  // Helper function to handle popup close and form clearing
+  const handleBookingPopupClose = useCallback(() => {
+    setBookingPopup(null)
+    // Clear the form after user acknowledges the popup
+    clearResults()
+    setCustomerName('')
+    setPickupDateTime('')
+    setEmailAddress('')
+    setPhoneNumber('')
+    setMessage('')
+  }, [])
+
   // Helper function to show error
   const showError = useCallback((message) => {
     setError(message)
@@ -265,8 +277,7 @@ function App() {
     setBookingPopup(message)
     setError(null)
     setSuccessMessage(null)
-    // Auto-clear booking popup after 8 seconds for better visibility
-    createTimeout(() => setBookingPopup(null), 8000)
+    // Popup will only clear when user clicks OK or close button
   }, [])
 
   // Load saved settings from localStorage
@@ -1107,13 +1118,7 @@ function App() {
       console.log('Email sent successfully:', response)
       showBookingPopup('Thank you for your booking request we will send you a confirmation as soon as possible')
       
-      // Clear the form after successful booking
-      clearResults()
-      setCustomerName('')
-      setPickupDateTime('')
-      setEmailAddress('')
-      setPhoneNumber('')
-      setMessage('')
+      // Form will be cleared when user clicks OK on the popup
 
     } catch (error) {
       console.error('Error sending email:', error)
@@ -1460,7 +1465,7 @@ function App() {
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/50 transition-opacity duration-300"
-            onClick={() => setBookingPopup(null)}
+            onClick={handleBookingPopupClose}
           />
           
           {/* Modal */}
@@ -1491,7 +1496,7 @@ function App() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setBookingPopup(null)}
+                  onClick={handleBookingPopupClose}
                   className={`p-2 rounded-full transition-colors duration-200 hover:scale-110 ${
                     isDarkMode 
                       ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
@@ -1515,7 +1520,7 @@ function App() {
                 {/* Action Button */}
                 <div className="mt-6 flex justify-end">
                   <button
-                    onClick={() => setBookingPopup(null)}
+                    onClick={handleBookingPopupClose}
                     className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 ${
                       isDarkMode 
                         ? 'bg-green-600 hover:bg-green-700 text-white' 
