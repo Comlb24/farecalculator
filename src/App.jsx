@@ -93,7 +93,7 @@ function App() {
   const [showSecondDropoff, setShowSecondDropoff] = useState(false)
   const [distance, setDistance] = useState(null)
   const [travelTime, setTravelTime] = useState(null)
-  const [apiKey] = useState(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyB8eSEwobyB-7ZkgKBUKLl5Hvico0CFjso')
+  const [apiKey] = useState(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
   const [isSendingEmail, setIsSendingEmail] = useState(false)
@@ -174,9 +174,9 @@ function App() {
   
   // EmailJS configuration
   const [emailConfig] = useState({
-    serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_nrynudw',
-    templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_lqiv82a',
-    publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'a6vgoEqiDO14QO4OJ'
+    serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+    templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+    publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY
   })
   
   // Settings state
