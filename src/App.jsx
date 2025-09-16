@@ -1063,8 +1063,8 @@ function App() {
       return
     }
 
-    if (!customerName || !emailAddress || !phoneNumber) {
-      showError('Please fill in all required customer information (Name, Email, Phone)')
+    if (!customerName || !phoneNumber) {
+      showError('Please fill in all required customer information (Name, Phone)')
       return
     }
 
@@ -1106,6 +1106,17 @@ function App() {
         booking_date: new Date().toLocaleString(),
         to_email: 'info@monctontaxi.com' // Replace with the email address where you want to receive bookings
       }
+
+      // Debug: Log template parameters to see what's being sent
+      console.log('Email template parameters being sent:', templateParams)
+      console.log('Return trip data:', {
+        isReturnTrip,
+        returnDateTime,
+        return_date: templateParams.return_date,
+        return_time: templateParams.return_time,
+        return_trip: templateParams.return_trip,
+        number_of_passengers: templateParams.number_of_passengers
+      })
 
       // Send email using EmailJS
       const response = await emailjs.send(
@@ -1220,7 +1231,7 @@ function App() {
   const validateRequiredFields = useCallback(() => {
     const errors = {
       customerName: !customerName.trim(),
-      emailAddress: !emailAddress.trim() || !isValidEmail(emailAddress),
+      emailAddress: emailAddress.trim() && !isValidEmail(emailAddress), // Only validate if email is provided
       phoneNumber: !phoneNumber.trim() || !isValidPhoneNumber(phoneNumber),
       pickupDateTime: !pickupDateTime || !validatePickupDateTime(pickupDateTime),
       returnDateTime: isReturnTrip && (!returnDateTime || !validatePickupDateTime(returnDateTime)),
@@ -1233,11 +1244,7 @@ function App() {
     if (errors.customerName) {
       showError('Please enter your full name')
     } else if (errors.emailAddress) {
-      if (!emailAddress.trim()) {
-        showError('Please enter your email address')
-      } else {
-        showError('Please enter a valid email address')
-      }
+      showError('Please enter a valid email address')
     } else if (errors.phoneNumber) {
       if (!phoneNumber.trim()) {
         showError('Please enter your phone number')
@@ -1886,7 +1893,7 @@ function App() {
 
                 <div>
                   <label htmlFor="email-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Email Address {validationErrors.emailAddress && <span className="text-red-500">*</span>}
+                    Email Address
                   </label>
                   <input
                     id="email-address"
