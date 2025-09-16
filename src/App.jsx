@@ -178,6 +178,17 @@ function App() {
     templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
     publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY
   })
+
+  // Initialize EmailJS when public key is available
+  useEffect(() => {
+    try {
+      if (emailConfig?.publicKey) {
+        emailjs.init(emailConfig.publicKey)
+      }
+    } catch (e) {
+      console.warn('EmailJS init failed:', e)
+    }
+  }, [emailConfig?.publicKey])
   
   // Settings state
   const [settings, setSettings] = useState({
@@ -1068,6 +1079,17 @@ function App() {
       return
     }
 
+    // Validate EmailJS configuration before attempting to send
+    if (!emailConfig?.serviceId || !emailConfig?.templateId || !emailConfig?.publicKey) {
+      console.warn('EmailJS config missing:', {
+        hasServiceId: !!emailConfig?.serviceId,
+        hasTemplateId: !!emailConfig?.templateId,
+        hasPublicKey: !!emailConfig?.publicKey
+      })
+      showError('Email service is not configured. Please try again later.')
+      return
+    }
+
     setIsSendingEmail(true)
 
     try {
@@ -1262,6 +1284,13 @@ function App() {
     // Return true if all fields are valid
     return !Object.values(errors).some(error => error)
   }, [customerName, emailAddress, phoneNumber, pickupDateTime, returnDateTime, isReturnTrip, numberOfPassengers, isValidEmail, isValidPhoneNumber, validatePickupDateTime, showError])
+
+  // Memoized validity for return date/time when return trip is selected
+  const isReturnDateTimeValid = useMemo(() => {
+    if (!isReturnTrip) return true
+    if (!returnDateTime) return false
+    return validatePickupDateTime(returnDateTime)
+  }, [isReturnTrip, returnDateTime, validatePickupDateTime])
 
   // Clear validation error for a specific field
   const clearValidationError = useCallback((fieldName) => {
@@ -2169,7 +2198,7 @@ function App() {
               <div className="mt-6">
                 <button
                   onClick={handleBookNow}
-                  disabled={!pickupAddress || !dropoffAddress || isCalculating || isSendingEmail}
+                  disabled={!pickupAddress || !dropoffAddress || !isReturnDateTimeValid || isCalculating || isSendingEmail}
                   className="w-full bg-black hover:bg-gray-800 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
                 >
                   {isSendingEmail ? (
