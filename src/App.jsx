@@ -49,7 +49,7 @@ const ResultsCard = memo(({
         </div>
         <div>
           <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Passengers</p>
-          <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{numberOfPassengers}</p>
+          <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{numberOfPassengers || '1'}</p>
         </div>
         <div>
           <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Trip Type</p>
@@ -124,11 +124,16 @@ function App() {
       hour12: false
     }).format(futureTime)
     
+    // Round minutes to nearest 5-minute increment
+    const [hours, minutes] = monctonTime.split(':')
+    const roundedMinutes = Math.round(parseInt(minutes) / 5) * 5
+    const roundedMinutesStr = roundedMinutes.toString().padStart(2, '0')
+    
     const year = monctonDate.find(part => part.type === 'year').value
     const month = monctonDate.find(part => part.type === 'month').value
     const day = monctonDate.find(part => part.type === 'day').value
     
-    return `${year}-${month}-${day}T${monctonTime}`
+    return `${year}-${month}-${day}T${hours}:${roundedMinutesStr}`
   })
   const [emailAddress, setEmailAddress] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -154,11 +159,16 @@ function App() {
       hour12: false
     }).format(futureTime)
     
+    // Round minutes to nearest 5-minute increment
+    const [hours, minutes] = monctonTime.split(':')
+    const roundedMinutes = Math.round(parseInt(minutes) / 5) * 5
+    const roundedMinutesStr = roundedMinutes.toString().padStart(2, '0')
+    
     const year = monctonDate.find(part => part.type === 'year').value
     const month = monctonDate.find(part => part.type === 'month').value
     const day = monctonDate.find(part => part.type === 'day').value
     
-    return `${year}-${month}-${day}T${monctonTime}`
+    return `${year}-${month}-${day}T${hours}:${roundedMinutesStr}`
   })
   const [message, setMessage] = useState('')
   
@@ -197,6 +207,9 @@ function App() {
     minFare: 25.00,
     currency: 'CAD'
   })
+
+  // Country code state for the form
+  const [countryCode, setCountryCode] = useState('CA')
 
   // Memoized fare calculation
   const calculatedFare = useMemo(() => {
@@ -254,6 +267,30 @@ function App() {
     setSuccessMessage(null)
     setBookingPopup(null)
   }, [])
+
+  // Country code mapping
+  const countryCodes = {
+    'CA': '+1',
+    'US': '+1', 
+    'GB': '+44',
+    'AU': '+61',
+    'DE': '+49',
+    'FR': '+33',
+    'IT': '+39',
+    'ES': '+34',
+    'IN': '+91',
+    'JP': '+81',
+    'CN': '+86',
+    'BR': '+55',
+    'MX': '+52',
+    'RU': '+7',
+    'ZA': '+27'
+  }
+
+  // Get current country code
+  const getCurrentCountryCode = useCallback(() => {
+    return countryCodes[countryCode] || '+1'
+  }, [countryCode])
 
   // Helper function to handle popup close and form clearing
   const handleBookingPopupClose = useCallback(() => {
@@ -446,7 +483,7 @@ function App() {
             fields: ['formatted_address', 'geometry', 'name', 'place_id'],
             bounds: atlanticBounds,
             strictBounds: false,
-            componentRestrictions: { country: 'ca' }
+            componentRestrictions: { country: countryCode.toLowerCase() }
           })
 
           pickupAutocomplete.addListener('place_changed', () => {
@@ -487,7 +524,7 @@ function App() {
             fields: ['formatted_address', 'geometry', 'name', 'place_id'],
             bounds: atlanticBounds,
             strictBounds: false,
-            componentRestrictions: { country: 'ca' }
+            componentRestrictions: { country: countryCode.toLowerCase() }
           })
 
           dropoffAutocomplete.addListener('place_changed', () => {
@@ -1119,7 +1156,7 @@ function App() {
         })() : 'Not specified',
         email_address: emailAddress,
         phone_number: phoneNumber,
-        number_of_passengers: numberOfPassengers,
+        number_of_passengers: numberOfPassengers || 1,
         return_trip: isReturnTrip ? 'Yes' : 'No',
         message: message || 'No special requests',
         distance: distance ? `${distance.toFixed(2)} km` : 'Not calculated',
@@ -1181,18 +1218,32 @@ function App() {
     return emailRegex.test(email)
   }, [])
 
-  // Phone validation helper - more flexible
+  // Phone validation helper - works with different country codes
   const isValidPhoneNumber = useCallback((phone) => {
     if (!phone || !phone.trim()) return false
     
     // Remove all non-numeric characters except +
     const cleanPhone = phone.replace(/[^\d+]/g, '')
+    const currentCountryCode = getCurrentCountryCode()
     
-    // Must have at least 10 digits (North American phone number)
-    // Allow for +1 prefix (11 characters total) or just 10 digits
+    // Check if phone starts with current country code
+    if (cleanPhone.startsWith(currentCountryCode)) {
+      const digits = cleanPhone.slice(currentCountryCode.length)
+      // Most countries use 7-15 digits for local numbers
+      return digits.length >= 7 && digits.length <= 15
+    }
+    
+    // Check if phone starts with country code without +
+    const countryCodeWithoutPlus = currentCountryCode.slice(1)
+    if (cleanPhone.startsWith(countryCodeWithoutPlus)) {
+      const digits = cleanPhone.slice(countryCodeWithoutPlus.length)
+      return digits.length >= 7 && digits.length <= 15
+    }
+    
+    // For numbers without country code, assume local format
     const digitCount = cleanPhone.replace(/\+/g, '').length
-    return digitCount >= 10 && digitCount <= 11
-  }, [])
+    return digitCount >= 7 && digitCount <= 15
+  }, [getCurrentCountryCode])
 
   // Get current date in Moncton timezone (Atlantic Time) - memoized
   const getCurrentDateInMoncton = useCallback(() => {
@@ -1257,7 +1308,7 @@ function App() {
       phoneNumber: !phoneNumber.trim() || !isValidPhoneNumber(phoneNumber),
       pickupDateTime: !pickupDateTime || !validatePickupDateTime(pickupDateTime),
       returnDateTime: isReturnTrip && (!returnDateTime || !validatePickupDateTime(returnDateTime)),
-      numberOfPassengers: !numberOfPassengers || numberOfPassengers < 1 || numberOfPassengers > 40
+      numberOfPassengers: !numberOfPassengers || numberOfPassengers === '' || numberOfPassengers < 1 || numberOfPassengers > 40
     }
     
     setValidationErrors(errors)
@@ -1271,7 +1322,7 @@ function App() {
       if (!phoneNumber.trim()) {
         showError('Please enter your phone number')
       } else {
-        showError('Please enter a valid phone number (e.g., +1 (555) 123-4567)')
+        showError(`Please enter a valid phone number (e.g., ${getCurrentCountryCode()} (555) 123-4567)`)
       }
     } else if (errors.pickupDateTime) {
       showError('Please select a valid pickup date and time in the future')
@@ -1318,53 +1369,55 @@ function App() {
     }
   }
 
-  // Phone number formatting function - always show +1 format
+  // Phone number formatting function - uses selected country code
   const formatPhoneNumber = useCallback((value) => {
     // Remove all non-numeric characters except +
     const phoneNumber = value.replace(/[^\d+]/g, '')
+    const currentCountryCode = getCurrentCountryCode()
     
     // If empty, return empty string
     if (!phoneNumber) return ''
     
-    // If it starts with +1, keep it as is
-    if (phoneNumber.startsWith('+1')) {
-      const digits = phoneNumber.slice(2)
+    // If it starts with the current country code, keep it as is
+    if (phoneNumber.startsWith(currentCountryCode)) {
+      const digits = phoneNumber.slice(currentCountryCode.length)
       const limitedDigits = digits.slice(0, 10)
       
       if (limitedDigits.length <= 3) {
-        return `+1 (${limitedDigits}`
+        return `${currentCountryCode} (${limitedDigits}`
       } else if (limitedDigits.length <= 6) {
-        return `+1 (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`
+        return `${currentCountryCode} (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`
       } else {
-        return `+1 (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`
+        return `${currentCountryCode} (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`
       }
     }
     
-    // If it starts with 1, treat as +1
-    if (phoneNumber.startsWith('1')) {
-      const digits = phoneNumber.slice(1)
+    // If it starts with the country code without +, treat as current country code
+    const countryCodeWithoutPlus = currentCountryCode.slice(1)
+    if (phoneNumber.startsWith(countryCodeWithoutPlus)) {
+      const digits = phoneNumber.slice(countryCodeWithoutPlus.length)
       const limitedDigits = digits.slice(0, 10)
       
       if (limitedDigits.length <= 3) {
-        return `+1 (${limitedDigits}`
+        return `${currentCountryCode} (${limitedDigits}`
       } else if (limitedDigits.length <= 6) {
-        return `+1 (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`
+        return `${currentCountryCode} (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`
       } else {
-        return `+1 (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`
+        return `${currentCountryCode} (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`
       }
     }
     
-    // For any 10-digit number, format as +1 (XXX) XXX-XXXX
+    // For any number without country code, format with current country code
     const limitedDigits = phoneNumber.slice(0, 10)
     
     if (limitedDigits.length <= 3) {
-      return `+1 (${limitedDigits}`
+      return `${currentCountryCode} (${limitedDigits}`
     } else if (limitedDigits.length <= 6) {
-      return `+1 (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`
+      return `${currentCountryCode} (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`
     } else {
-      return `+1 (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`
+      return `${currentCountryCode} (${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`
     }
-  }, [])
+  }, [getCurrentCountryCode])
 
   const handlePhoneNumberChange = useCallback((e) => {
     const formatted = formatPhoneNumber(e.target.value)
@@ -1385,6 +1438,7 @@ function App() {
     setPickupDateTime('')
     setEmailAddress('')
     setPhoneNumber('')
+    setCountryCode('CA') // Reset to default country
     setNumberOfPassengers(1)
     setIsReturnTrip(false)
     setReturnDateTime(() => {
@@ -1406,11 +1460,47 @@ function App() {
         hour12: false
       }).format(futureTime)
       
+      // Round minutes to nearest 5-minute increment
+      const [hours, minutes] = monctonTime.split(':')
+      const roundedMinutes = Math.round(parseInt(minutes) / 5) * 5
+      const roundedMinutesStr = roundedMinutes.toString().padStart(2, '0')
+      
       const year = monctonDate.find(part => part.type === 'year').value
       const month = monctonDate.find(part => part.type === 'month').value
       const day = monctonDate.find(part => part.type === 'day').value
       
-      return `${year}-${month}-${day}T${monctonTime}`
+      return `${year}-${month}-${day}T${hours}:${roundedMinutesStr}`
+    })
+    
+    // Reset pickup time to current time + 30 minutes with 5-minute increments
+    setPickupDateTime(() => {
+      const now = new Date()
+      const futureTime = new Date(now.getTime() + 30 * 60 * 1000)
+      
+      const monctonDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Moncton',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(futureTime)
+      
+      const monctonTime = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Moncton',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(futureTime)
+      
+      // Round minutes to nearest 5-minute increment
+      const [hours, minutes] = monctonTime.split(':')
+      const roundedMinutes = Math.round(parseInt(minutes) / 5) * 5
+      const roundedMinutesStr = roundedMinutes.toString().padStart(2, '0')
+      
+      const year = monctonDate.find(part => part.type === 'year').value
+      const month = monctonDate.find(part => part.type === 'month').value
+      const day = monctonDate.find(part => part.type === 'day').value
+      
+      return `${year}-${month}-${day}T${hours}:${roundedMinutesStr}`
     })
     setMessage('')
     
@@ -1840,11 +1930,14 @@ function App() {
                             : 'bg-white text-gray-900'
                         }`}
                       >
-                        {Array.from({ length: 60 }, (_, i) => (
-                          <option key={i} value={i.toString().padStart(2, '0')}>
-                            {i.toString().padStart(2, '0')}
-                          </option>
-                        ))}
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const minute = i * 5;
+                          return (
+                            <option key={minute} value={minute.toString().padStart(2, '0')}>
+                              {minute.toString().padStart(2, '0')}
+                            </option>
+                          );
+                        })}
                       </select>
                       
                       {/* AM/PM Toggle */}
@@ -1947,24 +2040,54 @@ function App() {
                   <label htmlFor="phone-number" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Phone Number {validationErrors.phoneNumber && <span className="text-red-500">*</span>}
                   </label>
-                  <input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+1 (506) 797-0087"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      handlePhoneNumberChange(e)
-                      clearValidationError('phoneNumber')
-                    }}
-                    maxLength={20} // Allow for longer input before formatting
-                    className={`w-3/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                      validationErrors.phoneNumber
-                        ? 'border-red-500 ring-2 ring-red-200'
-                        : isDarkMode 
-                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
-                    }`}
-                  />
+                  <div className="flex gap-2">
+                    {/* Country Code Dropdown */}
+                    <select
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className={`w-1/3 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                        isDarkMode 
+                          ? 'bg-gray-900 border-gray-700 text-white' 
+                          : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                    >
+                      <option value="CA">🇨🇦 Canada (+1)</option>
+                      <option value="US">🇺🇸 USA (+1)</option>
+                      <option value="GB">🇬🇧 UK (+44)</option>
+                      <option value="AU">🇦🇺 Australia (+61)</option>
+                      <option value="DE">🇩🇪 Germany (+49)</option>
+                      <option value="FR">🇫🇷 France (+33)</option>
+                      <option value="IT">🇮🇹 Italy (+39)</option>
+                      <option value="ES">🇪🇸 Spain (+34)</option>
+                      <option value="IN">🇮🇳 India (+91)</option>
+                      <option value="JP">🇯🇵 Japan (+81)</option>
+                      <option value="CN">🇨🇳 China (+86)</option>
+                      <option value="BR">🇧🇷 Brazil (+55)</option>
+                      <option value="MX">🇲🇽 Mexico (+52)</option>
+                      <option value="RU">🇷🇺 Russia (+7)</option>
+                      <option value="ZA">🇿🇦 South Africa (+27)</option>
+                    </select>
+                    
+                    {/* Phone Number Input */}
+                    <input
+                      id="phone-number"
+                      type="tel"
+                      placeholder={`${getCurrentCountryCode()} (506) 797-0087`}
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        handlePhoneNumberChange(e)
+                        clearValidationError('phoneNumber')
+                      }}
+                      maxLength={20} // Allow for longer input before formatting
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                        validationErrors.phoneNumber
+                          ? 'border-red-500 ring-2 ring-red-200'
+                          : isDarkMode 
+                            ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                      }`}
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1980,7 +2103,15 @@ function App() {
                       placeholder="1"
                       value={numberOfPassengers}
                       onChange={(e) => {
-                        setNumberOfPassengers(parseInt(e.target.value) || 1)
+                        const value = e.target.value
+                        if (value === '') {
+                          setNumberOfPassengers('')
+                        } else {
+                          const numValue = parseInt(value)
+                          if (!isNaN(numValue)) {
+                            setNumberOfPassengers(numValue)
+                          }
+                        }
                         clearValidationError('numberOfPassengers')
                       }}
                       className={`w-1/4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
@@ -2098,11 +2229,14 @@ function App() {
                               : 'bg-white text-gray-900'
                           }`}
                         >
-                          {Array.from({ length: 60 }, (_, i) => (
-                            <option key={i} value={i.toString().padStart(2, '0')}>
-                              {i.toString().padStart(2, '0')}
-                            </option>
-                          ))}
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const minute = i * 5;
+                            return (
+                              <option key={minute} value={minute.toString().padStart(2, '0')}>
+                                {minute.toString().padStart(2, '0')}
+                              </option>
+                            );
+                          })}
                         </select>
                         
                         {/* AM/PM Toggle */}

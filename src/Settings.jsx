@@ -341,6 +341,7 @@ const Settings = () => {
               </p>
             </div>
 
+
             {/* Formula Display */}
             <div className={`border rounded-lg p-6 transition-colors duration-200 ${
               isDarkMode 
