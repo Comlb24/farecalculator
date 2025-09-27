@@ -352,6 +352,39 @@ function App() {
     }
   }, [settings])
 
+  // Auto-refresh quote when address fields change
+  useEffect(() => {
+    // Only calculate if we have both pickup and dropoff addresses
+    if (!pickupAddress || !dropoffAddress) {
+      return
+    }
+
+    // Don't calculate if we're already calculating to prevent loops
+    if (isCalculating) {
+      return
+    }
+
+    // Don't calculate if Google Maps isn't loaded yet
+    if (!isMapLoaded || !window.google || !window.google.maps) {
+      return
+    }
+
+    // Debounce the calculation to avoid excessive API calls
+    const timeoutId = setTimeout(() => {
+      // Inline the calculation logic to avoid circular dependency
+      if (secondDropoffAddress) {
+        // Call updateMapWithMultipleDropoffs directly
+        updateMapWithMultipleDropoffs()
+      } else {
+        // Call calculateRouteWithAddresses directly
+        calculateRouteWithAddresses(pickupAddress, dropoffAddress)
+      }
+    }, 2000) // Increased to 2 seconds delay after user stops typing
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => clearTimeout(timeoutId)
+  }, [pickupAddress, dropoffAddress, secondDropoffAddress, isMapLoaded])
+
   // Load Google Maps API with optimized loading strategy
   useEffect(() => {
     // Only load once
@@ -537,6 +570,18 @@ function App() {
               setDropoffAddress(displayName)
               console.log('Dropoff place selected:', displayName)
               
+              // Clear old dropoff markers before adding new ones
+              if (customMarkersRef.current) {
+                customMarkersRef.current.forEach(marker => {
+                  if (marker.getTitle() === 'First Drop-off' || marker.getTitle() === 'Second Drop-off') {
+                    marker.setMap(null)
+                  }
+                })
+                customMarkersRef.current = customMarkersRef.current.filter(marker => 
+                  marker.getTitle() !== 'First Drop-off' && marker.getTitle() !== 'Second Drop-off'
+                )
+              }
+              
               // Auto-calculate if both addresses are filled
               createTimeout(() => {
                 const pickupInput = document.getElementById('pickup-address')
@@ -595,6 +640,18 @@ function App() {
             setSecondDropoffAddress(displayName)
             console.log('Second dropoff place selected:', displayName)
             
+            // Clear old second dropoff marker before adding new one
+            if (customMarkersRef.current) {
+              customMarkersRef.current.forEach(marker => {
+                if (marker.getTitle() === 'Second Drop-off') {
+                  marker.setMap(null)
+                }
+              })
+              customMarkersRef.current = customMarkersRef.current.filter(marker => 
+                marker.getTitle() !== 'Second Drop-off'
+              )
+            }
+            
             // Update map immediately with the selected address
             updateMapWithMultipleDropoffs(displayName)
           }
@@ -608,7 +665,7 @@ function App() {
     }
   }
 
-  const updateMapWithMultipleDropoffs = async (providedSecondDropoff = null) => {
+  const updateMapWithMultipleDropoffs = useCallback(async (providedSecondDropoff = null) => {
     if (!window.google || !window.google.maps || !mapInstanceRef.current) {
       showError('Google Maps is not loaded yet. Please wait a moment and try again.')
       return
@@ -731,7 +788,7 @@ function App() {
     } finally {
       setIsCalculating(false)
     }
-  }
+  }, [pickupAddress, dropoffAddress, secondDropoffAddress, showError])
 
   // Helper function to create a marker
   const createMarker = useCallback((position, title, iconUrl, labelText, color) => {
@@ -814,7 +871,7 @@ function App() {
     }
   }
 
-  const addCustomMarkers = async (providedPickup = null, providedDropoff = null, providedSecondDropoff = null) => {
+  const addCustomMarkers = useCallback(async (providedPickup = null, providedDropoff = null, providedSecondDropoff = null) => {
     if (!window.google || !window.google.maps || !mapInstanceRef.current) return
 
     // Use provided addresses or fall back to state
@@ -830,16 +887,12 @@ function App() {
       )
     }
 
-    // Clear only non-pickup markers
+    // Clear all existing markers except pickup (which we'll reuse if possible)
     if (customMarkersRef.current) {
       customMarkersRef.current.forEach(marker => {
-        if (marker.getTitle() !== 'Pickup') {
-          marker.setMap(null)
-        }
+        marker.setMap(null)
       })
-      customMarkersRef.current = customMarkersRef.current.filter(marker => 
-        marker.getTitle() === 'Pickup'
-      )
+      customMarkersRef.current = []
     }
 
     const markers = []
@@ -919,7 +972,7 @@ function App() {
     } catch (error) {
       console.error('Error in addCustomMarkers:', error)
     }
-  }
+  }, [pickupAddress, dropoffAddress, secondDropoffAddress, geocodeAddress])
 
   const clearCustomMarkers = useCallback(() => {
     if (customMarkersRef.current) {
@@ -986,7 +1039,7 @@ function App() {
   // Note: Map updates for second dropoff are now handled only by autocomplete place_changed events
   // This ensures the map only updates when a valid address is selected, not while typing
 
-  const calculateRouteWithAddresses = async (pickup, dropoff) => {
+  const calculateRouteWithAddresses = useCallback(async (pickup, dropoff) => {
     if (!pickup || !dropoff) {
       console.log('Missing addresses for calculation:', { pickup, dropoff })
       showError('Please enter both pickup and dropoff addresses')
@@ -1093,9 +1146,9 @@ function App() {
     } finally {
       setIsCalculating(false)
     }
-  }
+  }, [settings.minFare, settings.baseFare, settings.perKmRate, showError, addCustomMarkers])
 
-  const calculateRoute = async () => {
+  const calculateRoute = useCallback(async () => {
     if (!pickupAddress || !dropoffAddress) {
       alert('Please enter both pickup and dropoff addresses')
       return
@@ -1106,7 +1159,7 @@ function App() {
     } else {
       await calculateRouteWithAddresses(pickupAddress, dropoffAddress)
     }
-  }
+  }, [pickupAddress, dropoffAddress, secondDropoffAddress, updateMapWithMultipleDropoffs, calculateRouteWithAddresses])
 
   const sendBookingEmail = async () => {
     if (!pickupAddress || !dropoffAddress) {
@@ -1823,7 +1876,30 @@ function App() {
                             : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                       }`}
                     />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      {pickupAddress && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPickupAddress('')
+                            setDistance(null)
+                            setTravelTime(null)
+                            clearCustomMarkers()
+                            if (directionsRendererRef.current) {
+                              directionsRendererRef.current.setMap(null)
+                              directionsRendererRef.current = null
+                            }
+                          }}
+                          className={`mr-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 ${
+                            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                          title="Clear address"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
                       <svg className={`h-5 w-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
@@ -1852,7 +1928,30 @@ function App() {
                             : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                       }`}
                     />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      {dropoffAddress && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDropoffAddress('')
+                            setDistance(null)
+                            setTravelTime(null)
+                            clearCustomMarkers()
+                            if (directionsRendererRef.current) {
+                              directionsRendererRef.current.setMap(null)
+                              directionsRendererRef.current = null
+                            }
+                          }}
+                          className={`mr-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 ${
+                            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                          title="Clear address"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
                       <svg className={`h-5 w-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
@@ -1894,7 +1993,30 @@ function App() {
                             : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                         }`}
                       />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        {secondDropoffAddress && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSecondDropoffAddress('')
+                              setDistance(null)
+                              setTravelTime(null)
+                              clearCustomMarkers()
+                              if (directionsRendererRef.current) {
+                                directionsRendererRef.current.setMap(null)
+                                directionsRendererRef.current = null
+                              }
+                            }}
+                            className={`mr-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 ${
+                              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                            title="Clear address"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
                         <svg className={`h-5 w-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
