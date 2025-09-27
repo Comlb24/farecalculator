@@ -2490,25 +2490,6 @@ function App() {
                 </div>
       </div>
 
-              {/* Calculate Multi-Stop Route Button */}
-              {secondDropoffAddress && (
-                <div className="mt-4">
-                  <button
-                    onClick={updateMapWithMultipleDropoffs}
-                    disabled={!pickupAddress || !dropoffAddress || !secondDropoffAddress || isCalculating || isSendingEmail}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
-                  >
-                    {isCalculating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Calculating Route...
-                      </>
-                    ) : (
-                      'Calculate Multi-Stop Route'
-                    )}
-                  </button>
-                </div>
-              )}
 
               {/* Calculate Button */}
               <div className="mt-6">
