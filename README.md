@@ -155,3 +155,4 @@ If you encounter any issues or have questions:
 ## 🔄 Updates
 
 The app automatically saves your settings and API key to local storage. To update the API key, simply paste the new key and click "Update API Key" - the app will reload with the new configuration.
+# Force redeploy Sat Sep 27 18:23:11 ADT 2025
