@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTheme } from './ThemeContext.jsx'
+import { saveFareCalculation } from './firestoreService'
 import emailjs from '@emailjs/browser'
 
 // Memoized Results Component
@@ -15,7 +16,7 @@ const ResultsCard = memo(({
   isReturnTrip,
   settings, 
   isDarkMode, 
-  clearResults 
+  clearResults
 }) => {
   if (!distance && !calculatedFare) return null
 
@@ -71,11 +72,11 @@ const ResultsCard = memo(({
         </p>
       </div>
       
-      {/* Clear Results Button */}
-      <div className="mt-4">
+      {/* Action Buttons */}
+      <div className="mt-4 flex gap-2">
         <button
           onClick={clearResults}
-          className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+          className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
         >
           Clear Results
         </button>
@@ -1532,6 +1533,52 @@ function App() {
     console.log('Results cleared successfully')
   }
 
+  // Auto-save function when phone number is entered
+  const handleSaveCalculation = async () => {
+    if (!distance || !calculatedFare || !phoneNumber.trim()) {
+      return // Don't save if no calculation or phone number
+    }
+
+    try {
+      const calculationData = {
+        pickupAddress,
+        dropoffAddress,
+        secondDropoffAddress: secondDropoffAddress || null,
+        distance: distance.toFixed(2),
+        travelTime: travelTime || 'Not calculated',
+        calculatedFare: calculatedFare,
+        currency: settings.currency,
+        numberOfPassengers,
+        isReturnTrip,
+        perKmRate: settings.perKmRate,
+        baseFare: settings.baseFare,
+        minFare: settings.minFare,
+        customerName: customerName || '',
+        phoneNumber: phoneNumber,
+        emailAddress: emailAddress || '',
+        pickupDateTime: pickupDateTime || '',
+        returnDateTime: returnDateTime || ''
+      }
+
+      // Use a default user ID for anonymous users
+      await saveFareCalculation(calculationData, 'anonymous')
+      console.log('Calculation auto-saved to history!')
+    } catch (error) {
+      console.error('Error auto-saving calculation:', error)
+    }
+  }
+
+  // Auto-save when phone number is entered and calculation exists
+  useEffect(() => {
+    if (phoneNumber.trim() && distance && calculatedFare && pickupAddress) {
+      // Auto-save after a short delay to avoid too many saves
+      const autoSaveTimer = setTimeout(() => {
+        handleSaveCalculation()
+      }, 2000) // 2 second delay
+
+      return () => clearTimeout(autoSaveTimer)
+    }
+  }, [phoneNumber, distance, calculatedFare, pickupAddress])
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}>
@@ -1580,6 +1627,7 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </Link>
+              
             </div>
           </div>
         </div>
