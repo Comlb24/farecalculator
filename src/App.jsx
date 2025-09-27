@@ -175,6 +175,8 @@ function App() {
   
   // Validation state
   const [validationErrors, setValidationErrors] = useState({
+    pickupAddress: false,
+    dropoffAddress: false,
     customerName: false,
     emailAddress: false,
     phoneNumber: false,
@@ -1304,6 +1306,8 @@ function App() {
   // Validation function - memoized
   const validateRequiredFields = useCallback(() => {
     const errors = {
+      pickupAddress: !pickupAddress?.trim(),
+      dropoffAddress: !dropoffAddress?.trim(),
       customerName: !customerName.trim(),
       emailAddress: emailAddress.trim() && !isValidEmail(emailAddress), // Only validate if email is provided
       phoneNumber: !phoneNumber.trim() || !isValidPhoneNumber(phoneNumber),
@@ -1314,28 +1318,23 @@ function App() {
     
     setValidationErrors(errors)
     
-    // Show specific error messages
-    if (errors.customerName) {
-      showError('Please enter your full name')
-    } else if (errors.emailAddress) {
-      showError('Please enter a valid email address')
-    } else if (errors.phoneNumber) {
-      if (!phoneNumber.trim()) {
-        showError('Please enter your phone number')
-      } else {
-        showError(`Please enter a valid phone number (e.g., ${getCurrentCountryCode()} (555) 123-4567)`)
-      }
-    } else if (errors.pickupDateTime) {
-      showError('Please select a valid pickup date and time in the future')
-    } else if (errors.returnDateTime) {
-      showError('Please select a valid return date and time in the future')
-    } else if (errors.numberOfPassengers) {
-      showError('Please enter a valid number of passengers (1-40)')
+    // Show helpful message about missing required fields
+    const missingFields = []
+    if (errors.pickupAddress) missingFields.push('Pickup Address')
+    if (errors.dropoffAddress) missingFields.push('Dropoff Address')
+    if (errors.customerName) missingFields.push('Name')
+    if (errors.phoneNumber) missingFields.push('Phone Number')
+    if (errors.pickupDateTime) missingFields.push('Pickup Date & Time')
+    if (errors.returnDateTime) missingFields.push('Return Date & Time')
+    if (errors.numberOfPassengers) missingFields.push('Number of Passengers')
+    
+    if (missingFields.length > 0) {
+      showError(`Please fill in the following required fields: ${missingFields.join(', ')}`)
     }
     
     // Return true if all fields are valid
     return !Object.values(errors).some(error => error)
-  }, [customerName, emailAddress, phoneNumber, pickupDateTime, returnDateTime, isReturnTrip, numberOfPassengers, isValidEmail, isValidPhoneNumber, validatePickupDateTime, showError])
+  }, [pickupAddress, dropoffAddress, customerName, emailAddress, phoneNumber, pickupDateTime, returnDateTime, isReturnTrip, numberOfPassengers, isValidEmail, isValidPhoneNumber, validatePickupDateTime, showError])
 
   // Memoized validity for return date/time when return trip is selected
   const isReturnDateTimeValid = useMemo(() => {
@@ -1353,9 +1352,12 @@ function App() {
   }, [])
 
   const handleBookNow = async () => {
-    // Validate required fields first
-    if (!validateRequiredFields()) {
-      return // Stop if validation fails
+    // Validate required fields and show errors, but don't prevent booking
+    const isValid = validateRequiredFields()
+    
+    // If validation fails, just highlight the fields and return
+    if (!isValid) {
+      return // Stop if validation fails, but fields are already highlighted
     }
     
     try {
@@ -1801,7 +1803,7 @@ function App() {
               <div className="space-y-3">
                 <div>
                   <label htmlFor="pickup-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Pickup Address
+                    Pickup Address {validationErrors.pickupAddress && <span className="text-red-500">*</span>}
                   </label>
                   <div className="relative">
                     <input
@@ -1809,11 +1811,16 @@ function App() {
                       type="text"
                       placeholder="Enter pickup address"
                       value={pickupAddress}
-                      onChange={(e) => setPickupAddress(e.target.value)}
+                      onChange={(e) => {
+                        setPickupAddress(e.target.value)
+                        clearValidationError('pickupAddress')
+                      }}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                        validationErrors.pickupAddress
+                          ? 'border-red-500 ring-2 ring-red-200'
+                          : isDarkMode 
+                            ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                       }`}
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -1825,7 +1832,7 @@ function App() {
                 </div>
                 <div>
                   <label htmlFor="dropoff-address" className={`block text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                    Drop-off Address
+                    Drop-off Address {validationErrors.dropoffAddress && <span className="text-red-500">*</span>}
                   </label>
                   <div className="relative">
                     <input
@@ -1833,11 +1840,16 @@ function App() {
                       type="text"
                       placeholder="Enter drop-off address"
                       value={dropoffAddress}
-                      onChange={(e) => setDropoffAddress(e.target.value)}
+                      onChange={(e) => {
+                        setDropoffAddress(e.target.value)
+                        clearValidationError('dropoffAddress')
+                      }}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
-                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                        validationErrors.dropoffAddress
+                          ? 'border-red-500 ring-2 ring-red-200'
+                          : isDarkMode 
+                            ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-400' 
+                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
                       }`}
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -2380,7 +2392,7 @@ function App() {
               <div className="mt-6">
                 <button
                   onClick={handleBookNow}
-                  disabled={!pickupAddress || !dropoffAddress || !isReturnDateTimeValid || isCalculating || isSendingEmail}
+                  disabled={isCalculating || isSendingEmail}
                   className="w-full bg-black hover:bg-gray-800 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
                 >
                   {isSendingEmail ? (
